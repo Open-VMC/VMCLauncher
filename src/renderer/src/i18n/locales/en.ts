@@ -1,0 +1,208 @@
+import type { Translations } from "../types";
+
+const en: Translations = {
+  appName: "VMC Launcher",
+  loading: "Loading…",
+  save: "Save",
+  cancel: "Cancel",
+  create: "Create",
+  search: "Search",
+  close: "Close",
+  yes: "Yes",
+  no: "No",
+  error: "Error",
+  soon: "soon",
+  open: "Open",
+  launch: "Launch",
+  stop: "Stop",
+  new: "New",
+
+  auth: {
+    login: "Sign in",
+    register: "Create account",
+    email: "Email",
+    emailPlaceholder: "mail@example.com",
+    password: "Password",
+    passwordPlaceholder: "••••••••",
+    displayName: "OpenVMC Username",
+    displayNamePlaceholder: "LeDavax",
+    loginCta: "Sign in",
+    registerCta: "Create my account",
+    busy: "Please wait…",
+    heroTitle: "Your local panel for Paper and Paper + VMC",
+    heroSubtitle:
+      "Manage your servers, download official Paper stable builds, and connect a server to the VMC Network without leaving the app.",
+    deviceLabel: "Device",
+    deviceNote:
+      "A free account can only be connected on one device at a time.",
+  },
+
+  nav: {
+    home: "Home",
+    editor: "Editor",
+    servers: "Servers",
+    settings: "Settings",
+  },
+
+  home: {
+    heroTagline: "Build, launch and route your Paper servers through VMC Network.",
+    myServers: "My servers",
+    emptyHint: "Start by creating your first server.",
+    activeHint: "Launch or open a local server.",
+    newServer: "New server",
+  },
+
+  servers: {
+    title: "My servers",
+    subtitle: "Paper and Paper + VMC, stored in app-managed folders.",
+  },
+
+  status: {
+    stopped: "Offline",
+    starting: "Starting",
+    running: "Online",
+    stopping: "Stopping",
+    error: "Error",
+  },
+
+  serverNav: {
+    console: "Console",
+    files: "Files",
+    plugins: "Plugins",
+    mods: "Mods",
+    serverSettings: "Settings",
+    vmcSettings: "VMC Settings",
+  },
+
+  stats: {
+    uptime: "Uptime",
+    cpu: "CPU",
+    ram: "RAM",
+    storage: "Storage",
+    vmcNetwork: "VMC Network",
+    connected: "Connected",
+    offline: "Offline",
+  },
+
+  console: {
+    commandPlaceholder: "Server command…",
+  },
+
+  files: {
+    title: "Files",
+    managedFolder: "App-managed folder",
+    noFiles: "No editable text files found.",
+    noSelection: "No file selected",
+    unsavedChanges: "You have unsaved changes. Switch file anyway?",
+    unsavedBadge: "Unsaved changes",
+    savedBadge: "Up to date",
+    saving: "Saving...",
+    loadingFile: "Loading file...",
+    editorPlaceholder: "Select a file on the left to open it.",
+  },
+
+  plugins: {
+    title: "Plugins",
+    searchPlaceholder: "Search a plugin…",
+    searchBtn: "Search",
+    recommended: "Recommended",
+    folderNotice: "Local folder",
+    installedTitle: "Installed",
+    installedEmpty: "No plugin detected in the local folder.",
+    sourceLabel: "Source",
+    searching: "Searching…",
+    noResults: "No plugin matched this search.",
+    install: "Install",
+    installing: "Installing…",
+    compatible: "Compatible",
+    incompatible: "Compatibility to verify",
+    installSuccess: "Plugin installed in the local folder.",
+    curseForgeKeyHint: "CurseForge requires an API key through the VMC_CURSEFORGE_API_KEY environment variable.",
+    providers: {
+      modrinth: "Modrinth",
+      curseforge: "CurseForge",
+      hangar: "Hangar Paper",
+    },
+  },
+
+  serverSettings: {
+    title: "Server settings",
+    subtitle: "v1 surface for server.properties and Paper config.",
+    motd: "MOTD",
+    difficulty: "Difficulty",
+    gamemode: "Gamemode",
+    maxPlayers: "Max players",
+    viewDistance: "View distance",
+    simulationDistance: "Simulation distance",
+    pvp: "Enable PvP",
+    difficulties: {
+      peaceful: "Peaceful",
+      easy: "Easy",
+      normal: "Normal",
+      hard: "Hard",
+    },
+    gamemodes: {
+      survival: "Survival",
+      creative: "Creative",
+      adventure: "Adventure",
+    },
+  },
+
+  vmcSettings: {
+    title: "VMC Settings",
+    subtitle: "Slug, network visibility and Minecraft username whitelist.",
+    notEnabled: "This server does not use VMC Network.",
+    slug: "Slug",
+    networkMode: "Network mode",
+    currentCode: "Current code",
+    whitelist: "Username whitelist",
+    whitelistPlaceholder: "Steve, Alex",
+    modes: {
+      public: "Public",
+      code: "With code",
+      whitelist: "Whitelist",
+    },
+  },
+
+  createServer: {
+    title: "New server",
+    subtitle: "Choose the type, version and memory before the local folder is created.",
+    name: "Server name",
+    namePlaceholder: "Vanilla friends SMP",
+    type: "Type",
+    version: "Paper version",
+    memory: "Allocated memory (MiB)",
+    visibility: "VMC Network visibility",
+    cta: "Create server",
+  },
+
+  settingsPage: {
+    title: "Settings",
+    subtitle: "General launcher preferences and OpenVMC session status.",
+    general: "General",
+    account: "Account",
+    about: "About",
+    language: "Language",
+    javaRuntime: "Java runtime",
+    javaRuntimeValue: "Temurin 21 managed by the launcher",
+    concurrentServers: "Concurrent servers",
+    concurrentServersValue: "1 in v1",
+    email: "Email",
+    plan: "Plan",
+    linkedDevice: "Linked device",
+    deviceNote: "A free account can only be connected on one device at a time.",
+    serverLimit: "Server quota",
+    logout: "Log out",
+    aboutText:
+      "VMC Launcher manages the user's local servers, downloads official Paper and Velocity jars, and stores OpenVMC accounts on the device.",
+  },
+
+  emptyState: {
+    title: "No local servers",
+    subtitle:
+      "Create a Paper or Paper + VMC server and the launcher will automatically generate its managed folder.",
+    cta: "Create my first server",
+  },
+};
+
+export default en;

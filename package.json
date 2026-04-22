@@ -1,0 +1,59 @@
+{
+  "name": "vmc-launcher",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Desktop launcher for local Paper and Paper + VMC servers.",
+  "author": "OpenVMC",
+  "main": "dist-electron/main/main.js",
+  "scripts": {
+    "dev": "concurrently -k \"vite --config vite.config.ts\" \"tsc -p tsconfig.main.json --watch\" \"wait-on tcp:5173 file:dist-electron/main/main.js && cross-env VMC_RENDERER_URL=http://127.0.0.1:5173 electron .\"",
+    "build": "vite build --config vite.config.ts && tsc -p tsconfig.main.json",
+    "start": "electron .",
+    "dist": "npm run build && electron-builder"
+  },
+  "dependencies": {
+    "framer-motion": "^11.0.0",
+    "prismjs": "^1.30.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-simple-code-editor": "^0.14.1",
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.1",
+    "@types/prismjs": "^1.26.6",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@types/three": "^0.170.0",
+    "@vitejs/plugin-react": "^5.0.4",
+    "concurrently": "^9.1.2",
+    "cross-env": "^10.0.0",
+    "electron": "^41.2.2",
+    "electron-builder": "^26.0.12",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.10",
+    "wait-on": "^8.0.3"
+  },
+  "build": {
+    "appId": "com.openvmc.launcher",
+    "productName": "VMC Launcher",
+    "directories": {
+      "buildResources": "../assets"
+    },
+    "files": [
+      "dist-electron/**/*",
+      "package.json"
+    ],
+    "icon": "../assets/logo-mac.png",
+    "mac": {
+      "category": "public.app-category.games",
+      "icon": "../assets/logo-mac.png"
+    },
+    "linux": {
+      "icon": "../assets/logo-mac.png"
+    },
+    "win": {
+      "icon": "../assets/logo-mac.png"
+    }
+  }
+}

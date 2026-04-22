@@ -1,0 +1,155 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  color-scheme: dark;
+
+  /* ── Minecraft Launcher palette ── */
+  --bg:           #1d2026;
+  --bg-sidebar:   #1a1d23;
+  --bg-elevated:  #22262d;
+  --bg-card:      #292d36;
+  --bg-input:     #1a1d23;
+  --border:       rgba(255,255,255,0.07);
+  --border-hover: rgba(255,255,255,0.14);
+
+  --text:         #e8eaed;
+  --text-soft:    #8b9099;
+  --text-muted:   #555b66;
+
+  --green:        #4c9e3f;
+  --green-hover:  #5ab64c;
+  --green-light:  #72d962;
+  --green-glow:   rgba(76,158,63,0.35);
+
+  --red:          #c0392b;
+  --red-hover:    #d44538;
+
+  --yellow:       #f0c040;
+
+  --accent:       #4c9e3f;
+  --shadow-lg:    0 8px 32px rgba(0,0,0,0.55);
+  --shadow-sm:    0 2px 8px rgba(0,0,0,0.35);
+
+  --radius-sm:    4px;
+  --radius:       6px;
+  --radius-lg:    10px;
+
+  font-family: 'Outfit', 'Segoe UI', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+button, input, select, textarea { font: inherit; }
+a { color: inherit; text-decoration: none; }
+
+/* ── Scrollbar ─────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); }
+
+/* ── Selection ─────────────────────────────────────────────────────────────── */
+::selection { background: var(--green); color: #fff; }
+
+/* ── Utility ───────────────────────────────────────────────────────────────── */
+.font-mono { font-family: 'JetBrains Mono', monospace; }
+
+/* ── Editor & PrismJS Theme ────────────────────────────────────────────────── */
+.pterodactyl-editor-wrapper {
+  position: relative;
+}
+.pterodactyl-editor-wrapper textarea {
+  outline: none !important;
+}
+
+code[class*="language-"],
+pre[class*="language-"] {
+  color: #e8eaed;
+  background: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  text-align: left;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  word-wrap: normal;
+  line-height: 1.6;
+  tab-size: 4;
+  hyphens: none;
+}
+
+/* Prism Tokens for Dark Theme */
+.token.comment,
+.token.block-comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: #8b9099;
+}
+.token.punctuation {
+  color: #e8eaed;
+}
+.token.tag,
+.token.attr-name,
+.token.namespace,
+.token.deleted {
+  color: #e74c3c;
+}
+.token.function-name {
+  color: #3b82f6;
+}
+.token.boolean,
+.token.number,
+.token.function {
+  color: #f0c040;
+}
+.token.property,
+.token.class-name,
+.token.constant,
+.token.symbol {
+  color: #f1c40f;
+}
+.token.selector,
+.token.important,
+.token.atrule,
+.token.keyword,
+.token.builtin {
+  color: #a78bfa;
+}
+.token.string,
+.token.char,
+.token.attr-value,
+.token.regex,
+.token.variable {
+  color: #72d962;
+}
+.token.operator,
+.token.entity,
+.token.url {
+  color: #38bdf8;
+}
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+.token.italic {
+  font-style: italic;
+}
+.token.entity {
+  cursor: help;
+}
