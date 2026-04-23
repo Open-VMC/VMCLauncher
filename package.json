@@ -12,6 +12,7 @@
     "dist": "npm run build && electron-builder"
   },
   "dependencies": {
+    "react-bootstrap-icons": "^1.11.3",
     "framer-motion": "^11.0.0",
     "prismjs": "^1.30.0",
     "react": "^19.2.0",

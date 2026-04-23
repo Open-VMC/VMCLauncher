@@ -8,10 +8,11 @@ import {
 } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Editor from "react-simple-code-editor";
-import Prism from "prismjs";
-import "prismjs/components/prism-json";
-import "prismjs/components/prism-yaml";
-import "prismjs/components/prism-properties";
+import Prism from "./lib/prism";
+
+
+
+
 import type {
   AuthPayload,
   CreateServerPayload,
@@ -27,6 +28,7 @@ import type {
   ServerRoute,
   UpdateServerSettingsPayload,
   UpdateVmcSettingsPayload,
+  FileEntry,
 } from "@shared/contracts";
 import { useI18n, LOCALES, type LocaleCode } from "./i18n";
 import { ThreeHero } from "./components/scene/ThreeHero";
@@ -96,7 +98,7 @@ function SidebarLink({
       onMouseEnter={(e) => { if (!active && !disabled) (e.currentTarget as HTMLAnchorElement).style.background = "rgba(255,255,255,0.04)"; }}
       onMouseLeave={(e) => { if (!active && !disabled) (e.currentTarget as HTMLAnchorElement).style.background = "transparent"; }}
     >
-      {icon && <span style={{ opacity: 0.7 }}>{icon}</span>}
+      {icon && <span style={{ opacity: 0.7, display: "inline-flex", alignItems: "center" }}>{icon}</span>}
       <span style={{ flex: 1 }}>{label}</span>
       {suffix && (
         <span style={{ fontSize: 10, background: "rgba(255,255,255,0.08)", padding: "2px 6px", borderRadius: 99, color: "var(--text-muted)", fontWeight: 600 }}>
@@ -143,10 +145,16 @@ function ServerNavLink({ active, label, suffix, onClick }: { active: boolean; la
 }
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
-const IcoHome = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>;
-const IcoServers = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4 1h16a1 1 0 011 1v4a1 1 0 01-1 1H4a1 1 0 01-1-1V2a1 1 0 011-1zm0 8h16a1 1 0 011 1v4a1 1 0 01-1 1H4a1 1 0 01-1-1v-4a1 1 0 011-1zm0 8h16a1 1 0 011 1v4a1 1 0 01-1 1H4a1 1 0 01-1-1v-4a1 1 0 011-1z"/></svg>;
-const IcoSettings = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.49.49 0 00-.59-.22l-2.39.96a7.37 7.37 0 00-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54a7.37 7.37 0 00-1.62.94l-2.39-.96a.49.49 0 00-.59.22L2.74 8.87c-.12.22-.07.47.12.61l2.03 1.58c-.05.3-.07.63-.07.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>;
-const IcoEdit = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>;
+import { House, Cpu, Gear, Pencil, ThreeDots, Folder, FileEarmarkText, Trash } from 'react-bootstrap-icons';
+
+const IcoHome = () => <House size={16} />;
+const IcoServers = () => <Cpu size={16} />;
+const IcoSettings = () => <Gear size={16} />;
+const IcoEdit = () => <Pencil size={16} />;
+const IcoDotsVertical = () => <ThreeDots size={18} />;
+const IcoFolder = () => <Folder size={16} />;
+const IcoFile = () => <FileEarmarkText size={16} />;
+const IcoTrash = ({ size = 16 }: { size?: number }) => <Trash size={size} />;
 
 // ─── Auth Screen ──────────────────────────────────────────────────────────────
 function AuthScreen({
@@ -180,6 +188,11 @@ function AuthScreen({
         position: "relative",
         overflow: "hidden",
       }}>
+        {/* Background animation */}
+        <div style={{ position: "absolute", inset: 0, zIndex: 0, opacity: 0.6 }}>
+          <ThreeHero />
+        </div>
+
         {/* bg glow */}
         <div style={{ position: "absolute", top: -120, left: -120, width: 400, height: 400, background: "radial-gradient(circle, rgba(76,158,63,0.12) 0%, transparent 70%)", pointerEvents: "none" }} />
 
@@ -281,11 +294,15 @@ function HomePage({
   onLaunch,
   onOpen,
   onCreate,
+  onRename,
+  onDelete,
 }: {
   snapshot: LauncherSnapshot;
   onLaunch: (id: string) => Promise<void>;
   onOpen: (id: string) => Promise<void>;
   onCreate: () => void;
+  onRename: (id: string) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
 }) {
   const { t } = useI18n();
   return (
@@ -326,7 +343,7 @@ function HomePage({
           <motion.div initial="hidden" animate="show" variants={{ show: { transition: { staggerChildren: 0.05 } } }} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {snapshot.servers.map((server) => (
               <motion.div key={server.serverUuid} variants={fadeUp}>
-                <ServerRow server={server} onOpen={() => void onOpen(server.serverUuid)} onLaunch={() => void onLaunch(server.serverUuid)} />
+                <ServerRow server={server} onOpen={() => void onOpen(server.serverUuid)} onLaunch={() => void onLaunch(server.serverUuid)} onRename={() => void onRename(server.serverUuid)} onDelete={() => void onDelete(server.serverUuid)} />
               </motion.div>
             ))}
           </motion.div>
@@ -336,13 +353,16 @@ function HomePage({
   );
 }
 
-function ServerRow({ server, onOpen, onLaunch }: { server: ServerRecord; onOpen: () => void; onLaunch: () => void }) {
+function ServerRow({ server, onOpen, onLaunch, onRename, onDelete }: { server: ServerRecord; onOpen: () => void; onLaunch: () => void; onRename: () => void; onDelete: () => void }) {
   const { t } = useI18n();
   const isActive = server.status === "running" || server.status === "starting";
+  const [showMenu, setShowMenu] = useState(false);
   return (
     <div
       onClick={onOpen}
       style={{
+        position: "relative",
+        zIndex: showMenu ? 50 : 1,
         display: "flex",
         alignItems: "center",
         gap: 16,
@@ -373,12 +393,48 @@ function ServerRow({ server, onOpen, onLaunch }: { server: ServerRecord; onOpen:
       >
         {isActive ? t.open : t.launch}
       </Btn>
+      <div style={{ position: "relative" }} onClick={(e) => e.stopPropagation()}>
+        <button
+          onClick={() => setShowMenu(!showMenu)}
+          style={{ background: "transparent", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: "4px", borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center" }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = "#fff"; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; e.currentTarget.style.background = "transparent"; }}
+        >
+          <IcoDotsVertical />
+        </button>
+        <AnimatePresence>
+        {showMenu && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: -5 }} 
+            animate={{ opacity: 1, scale: 1, y: 0 }} 
+            exit={{ opacity: 0, scale: 0.95, y: -5 }} 
+            transition={{ duration: 0.1 }} 
+            style={{ 
+              position: "absolute", 
+              top: 32, 
+              right: 0, 
+              background: "rgba(23, 25, 30, 0.98)", 
+              backdropFilter: "blur(20px)", 
+              border: "1px solid var(--border)", 
+              borderRadius: "10px", 
+              padding: "4px", 
+              zIndex: 100, 
+              minWidth: "140px", 
+              boxShadow: "0 10px 30px rgba(0,0,0,0.6)" 
+            }}
+          >
+            <button onClick={() => { setShowMenu(false); onRename(); }} style={{ width: "100%", textAlign: "left", padding: "6px 10px", background: "transparent", border: "none", color: "#eee", cursor: "pointer", borderRadius: "6px", fontSize: "13px", fontWeight: 500, display: "block", marginBottom: "2px" }} onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.08)"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>{t.files.rename}</button>
+            <button onClick={() => { setShowMenu(false); onDelete(); }} style={{ width: "100%", textAlign: "left", padding: "6px 10px", background: "transparent", border: "none", color: "#ff5f52", cursor: "pointer", borderRadius: "6px", fontSize: "13px", fontWeight: 500, display: "block" }} onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,95,82,0.12)"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>{t.files.delete}</button>
+          </motion.div>
+        )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }
 
 // ─── Servers Page ─────────────────────────────────────────────────────────────
-function ServersPage({ snapshot, onLaunch, onOpen, onCreate }: { snapshot: LauncherSnapshot; onLaunch: (id: string) => Promise<void>; onOpen: (id: string) => Promise<void>; onCreate: () => void }) {
+function ServersPage({ snapshot, onLaunch, onOpen, onCreate, onRename, onDelete }: { snapshot: LauncherSnapshot; onLaunch: (id: string) => Promise<void>; onOpen: (id: string) => Promise<void>; onCreate: () => void; onRename: (id: string) => Promise<void>; onDelete: (id: string) => Promise<void> }) {
   const { t } = useI18n();
   return (
     <div style={{ padding: "32px", overflow: "auto", height: "100%" }}>
@@ -393,7 +449,7 @@ function ServersPage({ snapshot, onLaunch, onOpen, onCreate }: { snapshot: Launc
       >
         {snapshot.servers.map((server) => (
           <motion.div key={server.serverUuid} variants={fadeUp}>
-            <ServerCard server={server} onOpen={() => void onOpen(server.serverUuid)} onLaunch={() => void onLaunch(server.serverUuid)} />
+            <ServerCard server={server} onOpen={() => void onOpen(server.serverUuid)} onLaunch={() => void onLaunch(server.serverUuid)} onRename={() => void onRename(server.serverUuid)} onDelete={() => void onDelete(server.serverUuid)} />
           </motion.div>
         ))}
         <motion.div variants={fadeUp}>
@@ -404,214 +460,65 @@ function ServersPage({ snapshot, onLaunch, onOpen, onCreate }: { snapshot: Launc
   );
 }
 
-function ServerCard({ server, onOpen, onLaunch }: { server: ServerRecord; onOpen: () => void; onLaunch: () => void }) {
+function ServerCard({ server, onOpen, onLaunch, onRename, onDelete }: { server: ServerRecord; onOpen: () => void; onLaunch: () => void; onRename: () => void; onDelete: () => void }) {
   const { t } = useI18n();
-  const [showMenu, setShowMenu] = useState(false);
-  const [renaming, setRenaming] = useState(false);
-  const [newName, setNewName] = useState(server.displayName);
   const isActive = server.status === "running" || server.status === "starting";
-  
-  const handleRename = async () => {
-    const trimmedName = newName.trim();
-    if (!trimmedName) {
-      setNewName(server.displayName);
-      setRenaming(false);
-      return;
-    }
-    try {
-      await window.vmcLauncher.updateServerDisplayName({
-        serverUuid: server.serverUuid,
-        displayName: trimmedName
-      });
-      setRenaming(false);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : t.error);
-      setNewName(server.displayName);
-    }
-  };
-  
-  const handleDelete = async () => {
-    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer "${server.displayName}" ?`)) {
-      return;
-    }
-    try {
-      await window.vmcLauncher.deleteServer(server.serverUuid);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : t.error);
-    }
-  };
-
+  const [showMenu, setShowMenu] = useState(false);
   return (
     <div
-      onClick={renaming ? undefined : onOpen}
-      style={{ 
-        background: "var(--bg-card)", 
-        border: "1px solid var(--border)", 
-        borderRadius: 8, 
-        overflow: "hidden", 
-        cursor: renaming ? "default" : "pointer", 
-        transition: "border-color 0.15s, transform 0.15s",
-        position: "relative"
-      }}
-      onMouseEnter={(e) => { if (!renaming) { (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(76,158,63,0.4)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)"; } }}
-      onMouseLeave={(e) => { if (!renaming) { (e.currentTarget as HTMLDivElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLDivElement).style.transform = ""; } }}
+      onClick={onOpen}
+      style={{ position: "relative", zIndex: showMenu ? 50 : 1, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", transition: "border-color 0.15s, transform 0.15s" }}
+      onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(76,158,63,0.4)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)"; }}
+      onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLDivElement).style.transform = ""; }}
     >
-      {/* Menu button */}
-      <div style={{ position: "absolute", top: 8, right: 8, zIndex: 10 }}>
-        <button
-          onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
-          style={{
-            background: "rgba(0,0,0,0.3)",
-            border: "none",
-            borderRadius: 4,
-            color: "var(--text)",
-            cursor: "pointer",
-            padding: "4px 8px",
-            fontSize: 18,
-            lineHeight: 1,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            transition: "background 0.15s",
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(0,0,0,0.5)")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(0,0,0,0.3)")}
-        >
-          ⋮
-        </button>
-        
-        {showMenu && (
-          <div style={{
-            position: "absolute",
-            top: "100%",
-            right: 0,
-            background: "var(--bg-card)",
-            border: "1px solid var(--border)",
-            borderRadius: 4,
-            marginTop: 4,
-            boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
-            zIndex: 20,
-            minWidth: 150,
-          }}>
-            <button
-              onClick={(e) => { e.stopPropagation(); setShowMenu(false); setRenaming(true); }}
-              style={{
-                display: "block",
-                width: "100%",
-                padding: "8px 12px",
-                background: "transparent",
-                border: "none",
-                color: "var(--text)",
-                textAlign: "left",
-                cursor: "pointer",
-                fontSize: 13,
-                transition: "background 0.1s",
+      <div style={{ position: "relative", zIndex: 20, height: 90, background: "linear-gradient(135deg, rgba(76,158,63,0.15) 0%, rgba(26,29,35,0) 100%)", borderTopLeftRadius: 8, borderTopRightRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, fontWeight: 900, color: "rgba(76,158,63,0.3)" }}>
+        {server.displayName.slice(0, 1).toUpperCase()}
+        <div style={{ position: "absolute", top: 10, right: 10 }} onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={() => setShowMenu(!showMenu)}
+            style={{ background: "transparent", border: "none", color: "rgba(255,255,255,0.6)", cursor: "pointer", padding: "4px", borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s" }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = "#fff"; e.currentTarget.style.background = "rgba(255,255,255,0.08)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = "rgba(255,255,255,0.6)"; e.currentTarget.style.background = "transparent"; }}
+          >
+            <IcoDotsVertical />
+          </button>
+          <AnimatePresence>
+          {showMenu && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: -5 }} 
+              animate={{ opacity: 1, scale: 1, y: 0 }} 
+              exit={{ opacity: 0, scale: 0.95, y: -5 }} 
+              transition={{ duration: 0.1 }} 
+              style={{ 
+                position: "absolute", 
+                top: 32, 
+                right: 0, 
+                background: "rgba(23, 25, 30, 0.98)", 
+                backdropFilter: "blur(20px)", 
+                border: "1px solid var(--border)", 
+                borderRadius: "10px", 
+                padding: "4px", 
+                zIndex: 100, 
+                minWidth: "140px", 
+                boxShadow: "0 10px 30px rgba(0,0,0,0.6)" 
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.08)")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
-              ✏️ Renommer
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); setShowMenu(false); void handleDelete(); }}
-              style={{
-                display: "block",
-                width: "100%",
-                padding: "8px 12px",
-                background: "transparent",
-                border: "none",
-                color: "#ff6b6b",
-                textAlign: "left",
-                cursor: "pointer",
-                fontSize: 13,
-                transition: "background 0.1s",
-                borderTop: "1px solid var(--border)",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,107,107,0.1)")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-            >
-              🗑️ Supprimer
-            </button>
-          </div>
-        )}
-      </div>
-
-      <div style={{ height: 90, background: "linear-gradient(135deg, rgba(76,158,63,0.15) 0%, rgba(26,29,35,0) 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 36, fontWeight: 900, color: "rgba(76,158,63,0.3)" }}>
-        {(renaming ? newName : server.displayName).slice(0, 1).toUpperCase()}
+              <button onClick={() => { setShowMenu(false); onRename(); }} style={{ width: "100%", textAlign: "left", padding: "6px 10px", background: "transparent", border: "none", color: "#eee", cursor: "pointer", borderRadius: "6px", fontSize: "13px", fontWeight: 500, display: "block", marginBottom: "2px" }} onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.08)"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>{t.files.rename}</button>
+              <button onClick={() => { setShowMenu(false); onDelete(); }} style={{ width: "100%", textAlign: "left", padding: "6px 10px", background: "transparent", border: "none", color: "#ff5f52", cursor: "pointer", borderRadius: "6px", fontSize: "13px", fontWeight: 500, display: "block" }} onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,95,82,0.12)"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>{t.files.delete}</button>
+            </motion.div>
+          )}
+          </AnimatePresence>
+        </div>
       </div>
       <div style={{ padding: "12px 14px" }}>
-        {renaming ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <input
-              type="text"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              onClick={(e) => e.stopPropagation()}
-              onKeyDown={(e) => {
-                e.stopPropagation();
-                if (e.key === "Enter") void handleRename();
-                if (e.key === "Escape") { setRenaming(false); setNewName(server.displayName); }
-              }}
-              autoFocus
-              style={{
-                width: "100%",
-                background: "#0f1115",
-                border: "1px solid var(--green)",
-                borderRadius: 4,
-                color: "#fff",
-                padding: "8px 10px",
-                outline: "none",
-                fontFamily: "JetBrains Mono, monospace",
-                fontSize: 13,
-              }}
-            />
-            <div style={{ display: "flex", gap: 8 }}>
-              <button
-                onClick={(e) => { e.stopPropagation(); void handleRename(); }}
-                style={{
-                  flex: 1,
-                  background: "var(--green)",
-                  border: "none",
-                  borderRadius: 4,
-                  color: "#fff",
-                  padding: "6px",
-                  cursor: "pointer",
-                  fontSize: 11,
-                  fontWeight: 700,
-                }}
-              >
-                OK
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); setRenaming(false); setNewName(server.displayName); }}
-                style={{
-                  flex: 1,
-                  background: "var(--border)",
-                  border: "none",
-                  borderRadius: 4,
-                  color: "var(--text)",
-                  padding: "6px",
-                  cursor: "pointer",
-                  fontSize: 11,
-                  fontWeight: 700,
-                }}
-              >
-                Annuler
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{server.displayName}</div>
-            <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 10 }}>{server.kind === "paper-vmc" ? "Paper + OpenVMC Proxy" : "Paper"}</div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <StatusPill status={server.status} />
-              <Btn variant={isActive ? "ghost" : "primary"} onClick={(e) => { (e as unknown as MouseEvent).stopPropagation?.(); onLaunch(); }} style={{ padding: "5px 10px", fontSize: 12 }}>
-                {isActive ? t.open : t.launch}
-              </Btn>
-            </div>
-          </>
-        )}
+        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{server.displayName}</div>
+        <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 10 }}>{server.kind === "paper-vmc" ? "Paper + OpenVMC Proxy" : "Paper"}</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <StatusPill status={server.status} />
+          <Btn variant={isActive ? "ghost" : "primary"} onClick={(e) => { (e as unknown as MouseEvent).stopPropagation?.(); onLaunch(); }} style={{ padding: "5px 10px", fontSize: 12 }}>
+            {isActive ? t.open : t.launch}
+          </Btn>
+        </div>
       </div>
     </div>
   );
@@ -771,7 +678,9 @@ function CreateServerDialog({ snapshot, onClose, onCreate }: { snapshot: Launche
 }
 
 // ─── Server Panel ─────────────────────────────────────────────────────────────
-function ServerPanel({ details, route, onNavigate, onStart, onStop, onCommand, onSearchPlugins, onInstallPlugin, onSaveSettings, onSaveVmc, onReloadDetails }: {
+function ServerPanel({ 
+  details, route, onNavigate, onStart, onStop, onCommand, onSearchPlugins, onInstallPlugin, onSaveSettings, onSaveVmc, onReloadDetails, withFeedback, setFeedback 
+}: {
   details: ServerDetails;
   route: ServerRoute;
   onNavigate: (r: ServerRoute) => void;
@@ -783,6 +692,8 @@ function ServerPanel({ details, route, onNavigate, onStart, onStop, onCommand, o
   onSaveSettings: (s: ServerRecord["settings"]) => Promise<void>;
   onSaveVmc: (v: Pick<ServerRecord["vmc"], "slug" | "mode" | "whitelist">) => Promise<void>;
   onReloadDetails: () => Promise<void>;
+  withFeedback: (work: () => Promise<void>) => Promise<void>;
+  setFeedback: (m: string | null) => void;
 }) {
   const { t } = useI18n();
   const isRunning = details.server.status === "running";
@@ -809,9 +720,13 @@ function ServerPanel({ details, route, onNavigate, onStart, onStop, onCommand, o
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
         <div style={{ flex: 1, overflow: "auto" }}>
           <AnimatePresence mode="wait">
-            <motion.div key={route} initial="hidden" animate="show" exit="exit" variants={fadeUp} style={{ height: "100%" }}>
+            <motion.div 
+              key={route.kind === "server" ? "server-view" : "launcher-view"} 
+              initial="hidden" animate="show" exit="exit" variants={fadeUp} 
+              style={{ height: "100%" }}
+            >
               {route === "console" && <ConsoleView details={details} onCommand={onCommand} />}
-              {route === "files" && <FilesView details={details} onReloadDetails={onReloadDetails} />}
+              {route === "files" && <FilesView details={details} onReloadDetails={onReloadDetails} withFeedback={withFeedback} setFeedback={setFeedback} />}
               {route === "plugins" && (
                 <PluginsView
                   details={details}
@@ -896,26 +811,42 @@ function ConsoleView({ details, onCommand }: { details: ServerDetails; onCommand
 }
 
 // ─── Files ────────────────────────────────────────────────────────────────────
-function FilesView({ details, onReloadDetails }: { details: ServerDetails; onReloadDetails: () => Promise<void> }) {
+function FilesView({ details, onReloadDetails, withFeedback, setFeedback }: { details: ServerDetails; onReloadDetails: () => Promise<void>; withFeedback: (work: () => Promise<void>) => Promise<void>; setFeedback: (m: string | null) => void }) {
+  console.log("[Renderer] FilesView mounting with files count:", details?.files?.length);
   const { t } = useI18n();
-  const [currentDirectory, setCurrentDirectory] = useState("");
+  
+  const [currentDirectory, setCurrentDirectory] = useState(() => {
+    if (!details?.files) return "";
+    return details.files.some(f => f.path === "paper" && f.kind === "directory") ? "paper" : "";
+  });
+
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [content, setContent] = useState("");
   const [dirty, setDirty] = useState(false);
   const [loadingFile, setLoadingFile] = useState(false);
   const [saving, setSaving] = useState(false);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [creationModal, setCreationModal] = useState<{ kind: "file" | "directory" | "rename"; target?: FileEntry } | null>(null);
+  const [creationName, setCreationName] = useState("");
 
   const currentItems = useMemo(() => {
-    return details.files.filter((f) => {
-      if (f.path === currentDirectory) return false;
-      const parentDir = f.path.includes("/") ? f.path.substring(0, f.path.lastIndexOf("/")) : "";
-      return parentDir === currentDirectory;
-    }).sort((a, b) => {
-      if (a.kind === b.kind) return a.name.localeCompare(b.name);
-      return a.kind === "directory" ? -1 : 1;
-    });
-  }, [details.files, currentDirectory]);
+    if (!details?.files) return [];
+    try {
+      return details.files.filter((f) => {
+        if (!f || !f.path) return false;
+        if (f.path === currentDirectory) return false;
+        const parentDir = f.path.includes("/") ? f.path.substring(0, f.path.lastIndexOf("/")) : "";
+        return parentDir === currentDirectory;
+      }).sort((a, b) => {
+        if (a.kind === b.kind) return (a.name || "").localeCompare(b.name || "");
+        return a.kind === "directory" ? -1 : 1;
+      });
+    } catch (e) {
+      console.error("[Renderer] Error in currentItems memo:", e);
+      return [];
+    }
+  }, [details?.files, currentDirectory]);
+
 
   useEffect(() => {
     if (!selectedFile) {
@@ -967,6 +898,89 @@ function FilesView({ details, onReloadDetails }: { details: ServerDetails; onRel
     setSelectedFile(null);
   };
 
+  const handleCreateDirectory = async () => {
+    setCreationName("");
+    setCreationModal({ kind: "directory" });
+  };
+
+
+
+
+  const handleCreateFile = async () => {
+    setCreationName("");
+    setCreationModal({ kind: "file" });
+  };
+
+
+
+
+  const handleUpload = async () => {
+    await withFeedback(async () => {
+      await window.vmcLauncher.uploadServerFiles(details.server.serverUuid, currentDirectory);
+      await onReloadDetails();
+    });
+  };
+
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Récupération des chemins de fichiers (spécifique à Electron)
+    const files = Array.from(e.dataTransfer.files).map(f => window.electronAPI.getPathForFile(f)).filter(Boolean);
+    window.vmcLauncher.log("[Renderer] Drop event detected, paths:", files);
+    
+    if (files.length === 0) return;
+    
+    await withFeedback(async () => {
+      setFeedback(t.files.loadingFile || "Upload en cours...");
+      await window.vmcLauncher.uploadServerFiles(details.server.serverUuid, currentDirectory, files);
+      await onReloadDetails();
+      setFeedback(null);
+    });
+  };
+
+
+  const performCreation = async () => {
+    if (!creationModal || !creationName.trim()) return;
+    const name = creationName.trim();
+    const modal = creationModal;
+    setCreationModal(null);
+    setCreationName("");
+
+    await withFeedback(async () => {
+      if (modal.kind === "directory") {
+        const relPath = currentDirectory ? `${currentDirectory}/${name}` : name;
+        await window.vmcLauncher.createServerDirectory(details.server.serverUuid, relPath);
+      } else if (modal.kind === "file") {
+        const relPath = currentDirectory ? `${currentDirectory}/${name}` : name;
+        await window.vmcLauncher.writeServerFile(details.server.serverUuid, relPath, "");
+        setSelectedFile(relPath);
+      } else if (modal.kind === "rename" && modal.target) {
+        const item = modal.target;
+        const parentDir = item.path.includes("/") ? item.path.substring(0, item.path.lastIndexOf("/")) : "";
+        const newPath = parentDir ? `${parentDir}/${name}` : name;
+        await window.vmcLauncher.moveServerFiles(details.server.serverUuid, [item.path], newPath);
+      }
+      await onReloadDetails();
+    });
+  };
+
+  const handleRenameFile = async (item: FileEntry) => {
+    setCreationName(item.name);
+    setCreationModal({ kind: "rename", target: item });
+  };
+
+
+  const handleDeleteFile = async (item: FileEntry) => {
+    if (!window.confirm(t.files.deleteConfirm)) return;
+    await withFeedback(async () => {
+      await window.vmcLauncher.deleteServerFiles(details.server.serverUuid, [item.path]);
+      await onReloadDetails();
+    });
+  };
+
+
   const handleNavigateUp = () => {
     if (currentDirectory === "") return;
     const parts = currentDirectory.split("/");
@@ -976,70 +990,200 @@ function FilesView({ details, onReloadDetails }: { details: ServerDetails; onRel
 
   const breadcrumbParts = currentDirectory ? currentDirectory.split("/") : [];
 
-  const getLanguage = (filename: string) => {
+  const getLanguage = (filename: string | null) => {
+    if (!filename) return 'none';
     if (filename.endsWith('.json')) return 'json';
     if (filename.endsWith('.yml') || filename.endsWith('.yaml')) return 'yaml';
     if (filename.endsWith('.properties')) return 'properties';
+    if (filename.endsWith('.sh')) return 'bash';
+    if (filename.endsWith('.md')) return 'markdown';
+    if (filename.endsWith('.toml')) return 'toml';
+    if (filename.endsWith('.c')) return 'c';
+    if (filename.endsWith('.cpp') || filename.endsWith('.h')) return 'cpp';
+    if (filename.endsWith('.cs')) return 'csharp';
+    if (filename.endsWith('.css')) return 'css';
+    if (filename.endsWith('.go')) return 'go';
+    if (filename.endsWith('.html')) return 'markup';
+    if (filename.endsWith('.js')) return 'javascript';
+    if (filename.endsWith('.ts') || filename.endsWith('.tsx')) return 'typescript';
+    if (filename.endsWith('.lua')) return 'lua';
+    if (filename.endsWith('.sql')) return 'sql';
+    if (filename.endsWith('.php')) return 'php';
+    if (filename.endsWith('.py')) return 'python';
+    if (filename.endsWith('.rb')) return 'ruby';
+    if (filename.endsWith('.rs')) return 'rust';
+    if (filename.endsWith('.sass') || filename.endsWith('.scss')) return 'scss';
+    if (filename.endsWith('.xml')) return 'markup';
+    if (filename.endsWith('.diff')) return 'diff';
+    if (filename.toLowerCase() === 'dockerfile') return 'docker';
+    if (filename.endsWith('.pug')) return 'pug';
+    if (filename.endsWith('.vue')) return 'vue';
+    if (filename.endsWith('.conf')) return 'nginx';
     return 'none';
   };
 
   const highlightCode = (code: string, language: string) => {
-    if (language === 'none' || !Prism.languages[language]) {
+    if (language === 'none' || !code) return code;
+    try {
+      const grammar = Prism.languages[language];
+      if (!grammar) return code;
+      return Prism.highlight(code, grammar, language);
+    } catch (e) {
+      console.error("Prism error:", e);
       return code;
     }
-    return Prism.highlight(code, Prism.languages[language], language);
   };
 
+
+  const fileBreadcrumbParts = selectedFile ? selectedFile.split("/") : [];
+  const fileName = fileBreadcrumbParts.pop();
+  const fileDirParts = fileBreadcrumbParts;
+
   return (
-    <div style={{ height: "100%", display: "flex", flexDirection: "column", padding: "24px 32px", overflow: "hidden", background: "var(--bg)" }}>
+    <div style={{ height: "100%", display: "flex", flexDirection: "column", padding: "24px 32px", overflow: "hidden", background: "var(--bg)", position: "relative" }}>
+      {/* Creation Modal Overlay */}
+      {creationModal && (
+        <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", display: "grid", placeItems: "center", zIndex: 100 }}>
+          <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} style={{ background: "var(--bg-card)", border: "1px solid var(--border-hover)", borderRadius: 8, width: 400, padding: 24, boxShadow: "0 20px 40px rgba(0,0,0,0.4)" }}>
+            <h3 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 700 }}>
+              {creationModal.kind === "directory" ? t.files.createDirectory : creationModal.kind === "file" ? t.files.newFile : t.files.rename}
+            </h3>
+            <Input 
+              value={creationName} 
+              onChange={setCreationName} 
+              placeholder="Nom..." 
+              autoFocus 
+              onKeyDown={(e: any) => {
+                if (e.key === "Enter") performCreation();
+                if (e.key === "Escape") setCreationModal(null);
+              }}
+            />
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 24 }}>
+              <Btn variant="ghost" onClick={() => setCreationModal(null)}>{t.cancel || "Annuler"}</Btn>
+              <Btn variant="primary" onClick={performCreation} disabled={!creationName.trim()}>{t.confirm || "Confirmer"}</Btn>
+            </div>
+          </motion.div>
+        </div>
+      )}
       {/* Header bar */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, color: "var(--text-soft)" }}>
-          <span style={{ cursor: "pointer", color: "var(--text)" }} onClick={() => { if (!selectedFile) setCurrentDirectory(""); }}>/ home</span>
-          <span style={{ color: "var(--text-muted)" }}>/</span>
-          <span style={{ cursor: "pointer", color: "var(--text)" }} onClick={() => { if (!selectedFile) setCurrentDirectory(""); }}>container</span>
+          <span 
+            style={{ cursor: "pointer", color: "var(--text)", fontWeight: 600 }} 
+            onClick={() => {
+              setCurrentDirectory("");
+              setSelectedFile(null);
+            }}
+          >
+            {details.server.name}
+          </span>
+
           
-          {!selectedFile && breadcrumbParts.map((part, idx) => {
-            const pathSoFar = breadcrumbParts.slice(0, idx + 1).join("/");
-            return (
-              <span key={pathSoFar} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ color: "var(--text-muted)" }}>/</span>
-                <span style={{ cursor: "pointer", color: idx === breadcrumbParts.length - 1 ? "#fff" : "var(--text)", fontWeight: idx === breadcrumbParts.length - 1 ? 600 : 400 }} onClick={() => setCurrentDirectory(pathSoFar)}>
-                  {part}
+          {!selectedFile ? (
+            breadcrumbParts.map((part, idx) => {
+              const pathSoFar = breadcrumbParts.slice(0, idx + 1).join("/");
+              return (
+                <span key={pathSoFar} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ color: "var(--text-muted)" }}>/</span>
+                  <span style={{ cursor: "pointer", color: idx === breadcrumbParts.length - 1 ? "#fff" : "var(--text)", fontWeight: idx === breadcrumbParts.length - 1 ? 600 : 400 }} onClick={() => setCurrentDirectory(pathSoFar)}>
+                    {part}
+                  </span>
                 </span>
-              </span>
-            );
-          })}
-          
-          {selectedFile && (
+              );
+            })
+          ) : (
             <>
+              {fileDirParts.map((part, idx) => {
+                const pathSoFar = fileDirParts.slice(0, idx + 1).join("/");
+                // On permet de cliquer sur n'importe quel dossier parent du chemin
+                return (
+                  <span key={pathSoFar} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ color: "var(--text-muted)" }}>/</span>
+                    <span 
+                      style={{ cursor: "pointer", color: "var(--text)" }} 
+                      onClick={() => {
+                        setCurrentDirectory(pathSoFar);
+                        setSelectedFile(null);
+                      }}
+                    >
+                      {part}
+                    </span>
+
+                  </span>
+                );
+              })}
               <span style={{ color: "var(--text-muted)" }}>/</span>
-              <span style={{ color: "#fff", fontWeight: 600 }}>{selectedFile}</span>
+              <span style={{ color: "#fff", fontWeight: 600 }}>{fileName}</span>
             </>
           )}
         </div>
 
         {!selectedFile ? (
           <div style={{ display: "flex", gap: 10 }}>
-            <Btn variant="outline" disabled style={{ padding: "8px 14px" }}>Create Directory</Btn>
-            <Btn variant="primary" style={{ padding: "8px 14px", background: "#3b82f6", boxShadow: "0 2px 0 #2563eb", color: "#fff" }} disabled>Upload</Btn>
-            <Btn variant="primary" style={{ padding: "8px 14px", background: "#3b82f6", boxShadow: "0 2px 0 #2563eb", color: "#fff" }} disabled>New File</Btn>
+            <Btn 
+              variant="outline" 
+              onClick={() => {
+                console.log("[Renderer] Clicked Nouveau dossier");
+                window.vmcLauncher.log("Button 'Nouveau dossier' clicked");
+                handleCreateDirectory();
+              }} 
+              style={{ padding: "8px 14px" }}
+            >
+              {t.files.createDirectory}
+            </Btn>
+            <Btn 
+              variant="primary" 
+              onClick={() => {
+                console.log("[Renderer] Clicked Upload");
+                window.vmcLauncher.log("Button 'Upload' clicked");
+                handleUpload();
+              }} 
+              style={{ padding: "8px 14px", background: "#3b82f6", boxShadow: "0 2px 0 #2563eb", color: "#fff" }}
+            >
+              {t.files.upload}
+            </Btn>
+            <Btn 
+              variant="primary" 
+              onClick={() => {
+                console.log("[Renderer] Clicked Nouveau fichier");
+                window.vmcLauncher.log("Button 'Nouveau fichier' clicked");
+                handleCreateFile();
+              }} 
+              style={{ padding: "8px 14px", background: "#3b82f6", boxShadow: "0 2px 0 #2563eb", color: "#fff" }}
+            >
+              {t.files.newFile}
+            </Btn>
           </div>
         ) : (
           <Btn variant="outline" onClick={handleGoBack} style={{ padding: "6px 12px", fontSize: 12 }}>
-            ← Retour
+            {t.files.back}
           </Btn>
         )}
       </div>
 
       {/* Content Area */}
-      <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 6, overflow: "hidden", boxShadow: "var(--shadow-sm)" }}>
+      <div 
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          e.dataTransfer.dropEffect = 'copy';
+        }} 
+        onDragEnter={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+        onDrop={(e) => {
+          window.vmcLauncher.log("Drop event triggered on container");
+          handleDrop(e);
+        }}
+        style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 6, overflow: "hidden", boxShadow: "var(--shadow-sm)" }}
+      >
         
         {!selectedFile ? (
           <div style={{ flex: 1, overflow: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: 13 }}>
               <tbody>
-                {currentDirectory !== "" && (
+                {(currentDirectory !== "" && currentDirectory !== "paper") && (
                   <tr
                     onClick={handleNavigateUp}
                     style={{ borderBottom: "1px solid var(--border)", cursor: "pointer", transition: "background 0.1s" }}
@@ -1050,13 +1194,13 @@ function FilesView({ details, onReloadDetails }: { details: ServerDetails; onRel
                       <input type="checkbox" disabled style={{ width: 16, height: 16, cursor: "not-allowed" }} />
                     </td>
                     <td style={{ padding: "14px 0", color: "var(--text-muted)" }}>←</td>
-                    <td style={{ padding: "14px 16px", color: "var(--text-soft)" }}>Retour</td>
+                    <td style={{ padding: "14px 16px", color: "var(--text-soft)" }}>{t.files.back}</td>
                     <td colSpan={3}></td>
                   </tr>
                 )}
                 {currentItems.length === 0 && (
                   <tr>
-                    <td colSpan={6} style={{ padding: "20px", textAlign: "center", color: "var(--text-muted)" }}>Dossier vide</td>
+                    <td colSpan={6} style={{ padding: "20px", textAlign: "center", color: "var(--text-muted)" }}>{t.files.emptyFolder}</td>
                   </tr>
                 )}
                 {currentItems.map((item) => (
@@ -1073,8 +1217,8 @@ function FilesView({ details, onReloadDetails }: { details: ServerDetails; onRel
                     <td onClick={(e) => e.stopPropagation()} style={{ padding: "14px 16px", width: 40, color: "var(--text-muted)" }}>
                       <input type="checkbox" style={{ width: 16, height: 16, accentColor: "#3b82f6" }} />
                     </td>
-                    <td style={{ padding: "14px 0", width: 30, color: "var(--text-soft)", fontSize: 16 }}>
-                      {item.kind === "directory" ? "📁" : "📄"}
+                    <td style={{ padding: "14px 0", width: 30, color: "var(--text-soft)" }}>
+                      {item.kind === "directory" ? <IcoFolder /> : <IcoFile />}
                     </td>
                     <td style={{ padding: "14px 16px", color: "#fff", fontWeight: 500 }}>
                       {item.name}
@@ -1083,10 +1227,36 @@ function FilesView({ details, onReloadDetails }: { details: ServerDetails; onRel
                       {item.kind === "file" ? `${Math.max(1, Math.round(item.size / 1024))} Ko` : ""}
                     </td>
                     <td style={{ padding: "14px 16px", color: "var(--text-muted)", width: 200 }}>
-                      {new Date(item.modifiedAt).toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" })}
+                      {(() => {
+                        try {
+                          return new Date(item.modifiedAt).toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" });
+                        } catch {
+                          return "—";
+                        }
+                      })()}
                     </td>
-                    <td style={{ padding: "14px 16px", width: 60, textAlign: "right", color: "var(--text-muted)" }}>
-                      ...
+
+                    <td onClick={(e) => e.stopPropagation()} style={{ padding: "14px 16px", width: 120, textAlign: "right" }}>
+                      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                        <button 
+                          onClick={() => handleRenameFile(item)}
+                          style={{ background: "none", border: "none", padding: 4, cursor: "pointer", color: "var(--text-muted)", transition: "color 0.1s" }}
+                          onMouseEnter={(e) => (e.currentTarget.style.color = "#fff")}
+                          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+                          title={t.files.rename}
+                        >
+                          <IcoEdit size={14} />
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteFile(item)}
+                          style={{ background: "none", border: "none", padding: 4, cursor: "pointer", color: "var(--text-muted)", transition: "color 0.1s" }}
+                          onMouseEnter={(e) => (e.currentTarget.style.color = "#ef4444")}
+                          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
+                          title={t.files.delete}
+                        >
+                          <IcoTrash size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1097,13 +1267,14 @@ function FilesView({ details, onReloadDetails }: { details: ServerDetails; onRel
           <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
             <div style={{ flex: 1, overflow: "auto", position: "relative", background: "#1a1c23" }}>
               {loadingFile ? (
-                <div style={{ padding: 20, color: "var(--text-muted)", fontFamily: "JetBrains Mono, monospace" }}>Chargement...</div>
+                <div style={{ padding: 20, color: "var(--text-muted)", fontFamily: "JetBrains Mono, monospace" }}>{t.files.loadingFile}</div>
               ) : (
-                <div className="pterodactyl-editor-wrapper" style={{ padding: "12px 16px", fontSize: 13, fontFamily: "JetBrains Mono, monospace", minHeight: "100%" }}>
+                <div style={{ padding: "12px 16px", fontSize: 13, fontFamily: "JetBrains Mono, monospace", minHeight: "100%" }}>
                   <Editor
                     value={content}
                     onValueChange={(code) => { setContent(code); setDirty(true); }}
                     highlight={(code) => highlightCode(code, getLanguage(selectedFile))}
+
                     padding={0}
                     style={{
                       fontFamily: "JetBrains Mono, monospace",
@@ -1252,9 +1423,6 @@ function PluginsView({
             {localFeedback}
           </div>
         )}
-        <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>
-          {t.plugins.folderNotice} : <code style={{ fontFamily: "JetBrains Mono, monospace", color: "var(--green-light)" }}>{pluginsDir}</code>
-        </p>
       </div>
 
       <section>
@@ -1392,8 +1560,7 @@ function VmcSettingsView({ details, onSave }: { details: ServerDetails; onSave: 
 
   return (
     <div style={{ padding: "24px" }}>
-      <h2 style={{ margin: "0 0 4px", fontSize: 17, fontWeight: 700 }}>{t.vmcSettings.title}</h2>
-      <p style={{ margin: "0 0 24px", fontSize: 13, color: "var(--text-soft)" }}>{t.vmcSettings.subtitle}</p>
+      <h2 style={{ margin: "0 0 24px", fontSize: 17, fontWeight: 700 }}>{t.vmcSettings.title}</h2>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, maxWidth: 640 }}>
         <FormField label={t.vmcSettings.slug}>
           <Input value={slug} onChange={setSlug} />
@@ -1434,6 +1601,7 @@ export function App() {
   const [createOpen, setCreateOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [bootError, setBootError] = useState<string | null>(null);
   const [authMode] = useState<"login" | "register">("login");
 
   useEffect(() => {
@@ -1452,17 +1620,36 @@ export function App() {
   }, [route]);
 
   useEffect(() => {
-    if (route.kind === "server") void refreshServer(route.serverUuid);
-    else setDetails(null);
-  }, [route.kind === "server" ? `${(route as any).serverUuid}:${(route as any).route}` : (route as any).route]);
+    if (route.kind === "server") {
+      void refreshServer(route.serverUuid);
+      const poll = setInterval(() => {
+        void refreshServer(route.serverUuid);
+      }, 3000);
+      return () => clearInterval(poll);
+    } else {
+      setDetails(null);
+      return undefined;
+    }
+  }, [route.kind === "server" ? (route as any).serverUuid : null]);
 
   async function refreshSnapshot() {
-    const next = await window.vmcLauncher.getSnapshot();
-    setSnapshot(next);
+    console.log("[Renderer] refreshSnapshot starting...");
+    try {
+      const next = await window.vmcLauncher.getSnapshot();
+      console.log("[Renderer] refreshSnapshot received:", next);
+      setSnapshot(next);
+    } catch (err: any) {
+      console.error("[Renderer] refreshSnapshot ERROR:", err);
+      setBootError(err.message || String(err));
+    }
   }
   async function refreshServer(id: string) {
-    const next = await window.vmcLauncher.getServerDetails(id);
-    setDetails(next);
+    try {
+      const next = await window.vmcLauncher.getServerDetails(id);
+      setDetails(next);
+    } catch (err) {
+      console.error("[Renderer] refreshServer ERROR:", err);
+    }
   }
 
   const withFeedback = useCallback(async (work: () => Promise<void>) => {
@@ -1545,7 +1732,44 @@ export function App() {
     });
   }
 
+  const [renamingServer, setRenamingServer] = useState<ServerRecord | null>(null);
+
+  async function handleRenameServer(serverUuid: string) {
+    const server = snapshot?.servers.find(s => s.serverUuid === serverUuid);
+    if (server) setRenamingServer(server);
+  }
+
+  async function performRename(serverUuid: string, newName: string) {
+    await withFeedback(async () => {
+      await window.vmcLauncher.renameServer(serverUuid, newName);
+      await refreshSnapshot();
+      setRenamingServer(null);
+    });
+  }
+
+  async function handleDeleteServer(serverUuid: string) {
+    if (!window.confirm(t.files.deleteServerConfirm)) return;
+    await withFeedback(async () => {
+      await window.vmcLauncher.deleteServer(serverUuid);
+      await refreshSnapshot();
+    });
+  }
+
   // ── Boot / Loading ──────────────────────────────────────────────────────
+  if (bootError) {
+    return (
+      <div style={{ display: "grid", placeItems: "center", height: "100vh", background: "#1a0505", color: "#ff8888", padding: 40, textAlign: "center" }}>
+        <div>
+          <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 16 }}>CRITICAL BOOT ERROR</div>
+          <code style={{ background: "rgba(0,0,0,0.3)", padding: "8px 12px", borderRadius: 4, display: "block", marginBottom: 16 }}>{bootError}</code>
+          <div style={{ marginTop: 24 }}>
+            <button onClick={() => window.location.reload()} style={{ background: "#ff8888", color: "#1a0505", border: "none", padding: "10px 20px", borderRadius: 4, fontWeight: 800, cursor: "pointer" }}>RETRY</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!snapshot) {
     return (
       <div style={{ display: "grid", placeItems: "center", height: "100vh", background: "var(--bg)", color: "var(--text-soft)", fontSize: 14, letterSpacing: "0.1em" }}>
@@ -1563,6 +1787,7 @@ export function App() {
         <AuthScreen snapshot={snapshot} onAuth={handleAuth} busy={busy} feedback={feedback} />
         <AnimatePresence>
           {createOpen && <CreateServerDialog snapshot={snapshot} onClose={() => setCreateOpen(false)} onCreate={handleCreateServer} />}
+          {renamingServer && <RenameServerDialog server={renamingServer} onClose={() => setRenamingServer(null)} onRename={performRename} />}
         </AnimatePresence>
       </AnimatePresence>
     );
@@ -1573,7 +1798,7 @@ export function App() {
     if (!details) {
       return (
         <div style={{ display: "grid", placeItems: "center", height: "100vh", background: "var(--bg)", color: "var(--text-soft)", fontSize: 14, letterSpacing: "0.1em" }}>
-          <motion.div animate={{ opacity: [0.4, 1, 0.4] }} transition={{ repeat: Infinity, duration: 1.5 }}>{t.loading}</motion.div> {/* Corrected t.loading usage */}
+          <motion.div animate={{ opacity: [0.4, 1, 0.4] }} transition={{ repeat: Infinity, duration: 1.5 }}>{t.loading}</motion.div>
         </div>
       );
     }
@@ -1592,6 +1817,8 @@ export function App() {
           onSaveSettings={(s) => handleUpdateServerSettings({ serverUuid: details.server.serverUuid, settings: s })}
           onSaveVmc={(v) => handleUpdateVmcSettings({ serverUuid: details.server.serverUuid, vmc: v })}
           onReloadDetails={() => refreshServer(details.server.serverUuid)}
+          withFeedback={withFeedback}
+          setFeedback={setFeedback}
         />
       </>
     );
@@ -1617,9 +1844,9 @@ export function App() {
 
           {/* Nav */}
           <nav style={{ flex: 1, padding: "8px 8px", display: "flex", flexDirection: "column", gap: 2 }}>
-            <SidebarLink active={route.kind === "launcher" && route.route === "home"} href="#/home" label={t.nav.home} icon={<IcoHome />} /> {/* Corrected t.nav.home usage */}
-            <SidebarLink active={false} href="#" label={t.nav.editor} icon={<IcoEdit />} suffix={t.soon} disabled /> {/* Corrected t.nav.editor usage */}
-            <SidebarLink active={route.kind === "launcher" && route.route === "servers"} href="#/servers" label={t.nav.servers} icon={<IcoServers />} /> {/* Corrected t.nav.servers usage */}
+            <SidebarLink active={route.kind === "launcher" && route.route === "home"} href="#/home" label={t.nav.home} icon={<IcoHome />} />
+            <SidebarLink active={false} href="#" label={t.nav.editor} icon={<IcoEdit />} suffix={t.soon} disabled />
+            <SidebarLink active={route.kind === "launcher" && route.route === "servers"} href="#/servers" label={t.nav.servers} icon={<IcoServers />} />
           </nav>
 
           <div style={{ padding: "8px 8px", borderTop: "1px solid var(--border)" }}>
@@ -1632,12 +1859,12 @@ export function App() {
           <AnimatePresence mode="wait">
             {route.kind === "launcher" && route.route === "home" && (
               <motion.div key="home" initial="hidden" animate="show" exit="exit" variants={fadeIn} style={{ height: "100%" }}>
-                <HomePage snapshot={snapshot} onLaunch={handleLaunchServer} onOpen={handleOpenServer} onCreate={() => setCreateOpen(true)} />
+                <HomePage snapshot={snapshot} onLaunch={handleLaunchServer} onOpen={handleOpenServer} onCreate={() => setCreateOpen(true)} onRename={handleRenameServer} onDelete={handleDeleteServer} />
               </motion.div>
             )}
             {route.kind === "launcher" && route.route === "servers" && (
               <motion.div key="servers" initial="hidden" animate="show" exit="exit" variants={fadeIn} style={{ height: "100%" }}>
-                <ServersPage snapshot={snapshot} onLaunch={handleLaunchServer} onOpen={handleOpenServer} onCreate={() => setCreateOpen(true)} />
+                <ServersPage snapshot={snapshot} onLaunch={handleLaunchServer} onOpen={handleOpenServer} onCreate={() => setCreateOpen(true)} onRename={handleRenameServer} onDelete={handleDeleteServer} />
               </motion.div>
             )}
             {route.kind === "launcher" && route.route === "settings" && (
@@ -1651,6 +1878,7 @@ export function App() {
 
       <AnimatePresence>
         {createOpen && <CreateServerDialog snapshot={snapshot} onClose={() => setCreateOpen(false)} onCreate={handleCreateServer} />}
+        {renamingServer && <RenameServerDialog server={renamingServer} onClose={() => setRenamingServer(null)} onRename={performRename} />}
       </AnimatePresence>
     </>
   );
@@ -1690,4 +1918,54 @@ function formatUptime(seconds: number): string {
   const hours = Math.floor(mins / 60);
   if (hours === 0) return `${mins}min ${secs}s`;
   return `${hours}h ${mins % 60}min`;
+}
+
+function RenameServerDialog({ server, onClose, onRename }: { server: ServerRecord; onClose: () => void; onRename: (id: string, name: string) => Promise<void> }) {
+  const [name, setName] = useState(server.displayName);
+  const [busy, setBusy] = useState(false);
+  const { t } = useI18n();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || busy) return;
+    setBusy(true);
+    try {
+      await onRename(server.serverUuid, name.trim());
+      onClose();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 1000, display: "grid", placeItems: "center", background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }} onClick={onClose}>
+      <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} style={{ width: 400, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 12, padding: "24px", boxShadow: "0 20px 50px rgba(0,0,0,0.5)" }} onClick={(e) => e.stopPropagation()}>
+        <h3 style={{ margin: "0 0 8px", fontSize: 18, fontWeight: 700 }}>{t.files.renameServer}</h3>
+        <p style={{ margin: "0 0 20px", fontSize: 13, color: "var(--text-muted)" }}>{t.files.renameServerHint} <b>{server.displayName}</b></p>
+        
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-soft)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>{t.files.serverName}</div>
+            <input 
+              value={name} 
+              onChange={(e) => setName(e.target.value)} 
+              autoFocus 
+              style={{ width: "100%", background: "rgba(0,0,0,0.2)", border: "1px solid var(--border)", borderRadius: 6, padding: "10px 12px", color: "#fff", fontSize: 14, outline: "none", transition: "border-color 0.15s" }}
+              onFocus={(e) => e.currentTarget.style.borderColor = "var(--green)"}
+              onBlur={(e) => e.currentTarget.style.borderColor = "var(--border)"}
+            />
+          </div>
+          
+          <div style={{ display: "flex", gap: 12, marginTop: 24, justifyContent: "flex-end" }}>
+            <button onClick={onClose} type="button" style={{ background: "transparent", border: "none", color: "var(--text-soft)", cursor: "pointer", padding: "8px 16px", borderRadius: 6, fontSize: 14, fontWeight: 600 }}>{t.cancel}</button>
+            <Btn variant="primary" type="submit" disabled={busy || !name.trim()}>
+              {busy ? t.files.saving_action : t.files.rename_action}
+            </Btn>
+          </div>
+        </form>
+      </motion.div>
+    </div>
+  );
 }

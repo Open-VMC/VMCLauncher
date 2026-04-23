@@ -69,11 +69,7 @@ a { color: inherit; text-decoration: none; }
 /* ── Utility ───────────────────────────────────────────────────────────────── */
 .font-mono { font-family: 'JetBrains Mono', monospace; }
 
-/* ── Editor & PrismJS Theme ────────────────────────────────────────────────── */
-.pterodactyl-editor-wrapper {
-  position: relative;
-}
-.pterodactyl-editor-wrapper textarea {
+.editor-textarea {
   outline: none !important;
 }
 

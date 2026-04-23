@@ -26,7 +26,7 @@ const fr: Translations = {
     password: "Mot de passe",
     passwordPlaceholder: "••••••••",
     displayName: "Pseudo OpenVMC",
-    displayNamePlaceholder: "LeDavax",
+    displayNamePlaceholder: "Davax",
     loginCta: "Se connecter",
     registerCta: "Créer mon compte",
     busy: "Patiente…",
@@ -55,7 +55,7 @@ const fr: Translations = {
 
   servers: {
     title: "Mes serveurs",
-    subtitle: "Paper et Paper + VMC, ranges dans des dossiers geres par l'app.",
+    subtitle: "Paper et Paper + VMC, rangés dans des dossiers gérés par l'app.",
   },
 
   status: {
@@ -72,7 +72,7 @@ const fr: Translations = {
     plugins: "Plugins",
     mods: "Mods",
     serverSettings: "Réglages",
-    vmcSettings: "Parametres VMC",
+    vmcSettings: "Paramètres VMC",
   },
 
   stats: {
@@ -93,13 +93,31 @@ const fr: Translations = {
     title: "Fichiers",
     managedFolder: "Dossier géré par l'application",
     noFiles: "Aucun fichier texte trouvé.",
-    noSelection: "Aucun fichier selectionne",
-    unsavedChanges: "Des modifications ne sont pas sauvegardees. Changer de fichier ?",
-    unsavedBadge: "Modifications non sauvegardees",
+    noSelection: "Aucun fichier sélectionné",
+    unsavedChanges: "Des modifications ne sont pas sauvegardées. Changer de fichier ?",
+    unsavedBadge: "Modifications non sauvegardées",
     savedBadge: "A jour",
     saving: "Sauvegarde...",
     loadingFile: "Chargement du fichier...",
-    editorPlaceholder: "Selectionne un fichier a gauche pour l'ouvrir.",
+    editorPlaceholder: "Sélectionne un fichier à gauche pour l'ouvrir.",
+    newFile: "Nouveau fichier",
+    createDirectory: "Nouveau dossier",
+    upload: "Uploader",
+    back: "← Retour",
+    emptyFolder: "Dossier vide",
+    rename: "Renommer",
+    delete: "Supprimer",
+    deleteConfirm: "Voulez-vous vraiment supprimer ce fichier ou dossier ?",
+    deleteServerConfirm: "Voulez-vous vraiment supprimer ce serveur ? Cette action est irréversible.",
+    renameServer: "Renommer le serveur",
+    renameServerHint: "Entrez le nouveau nom pour",
+    serverName: "Nom du serveur",
+    rename_action: "Enregistrer",
+    saving_action: "Enregistrement...",
+    download: "Télécharger",
+    renameSuccess: "Fichier renommé avec succès.",
+    deleteSuccess: "Fichier supprimé avec succès.",
+    createSuccess: "Fichier/Dossier créé avec succès.",
   },
 
   plugins: {
@@ -150,8 +168,8 @@ const fr: Translations = {
   },
 
   vmcSettings: {
-    title: "Parametres VMC",
-    subtitle: "Slug, visibilite reseau et whitelist pseudo Minecraft.",
+    title: "Paramètres VMC",
+    subtitle: "Slug, visibilité réseau et whitelist pseudo Minecraft.",
     notEnabled: "Ce serveur n'utilise pas VMC Network.",
     slug: "Slug",
     networkMode: "Mode réseau",
@@ -173,35 +191,35 @@ const fr: Translations = {
     type: "Type",
     version: "Version Paper",
     memory: "Mémoire allouée (MiB)",
-    visibility: "Visibilite VMC Network",
+    visibility: "Visibilité VMC Network",
     cta: "Créer le serveur",
   },
 
   settingsPage: {
     title: "Paramètres",
-    subtitle: "Preferences generales du launcher et etat de la session OpenVMC.",
+    subtitle: "Préférences générales du launcher et état de la session OpenVMC.",
     general: "Général",
     account: "Compte",
     about: "À propos",
     language: "Langue",
     javaRuntime: "Runtime Java",
-    javaRuntimeValue: "Temurin 21 gere automatiquement",
+    javaRuntimeValue: "Temurin 21 géré automatiquement",
     concurrentServers: "Serveurs simultanés",
     concurrentServersValue: "1 en v1",
     email: "Email",
     plan: "Plan",
     linkedDevice: "Appareil lié",
-    deviceNote: "Un compte gratuit ne peut etre connecte simultanement que sur un seul appareil.",
+    deviceNote: "Un compte gratuit ne peut être connecté simultanément que sur un seul appareil.",
     serverLimit: "Quota serveurs",
-    logout: "Deconnecter le compte",
+    logout: "Déconnecter le compte",
     aboutText:
-      "VMC Launcher pilote les serveurs locaux de l'utilisateur, telecharge les jars Paper/Velocity officiels et gere les comptes OpenVMC sur l'appareil.",
+      "VMC Launcher pilote les serveurs locaux de l'utilisateur, télécharge les jars Paper/Velocity officiels et gère les comptes OpenVMC sur l'appareil.",
   },
 
   emptyState: {
     title: "Aucun serveur local",
     subtitle:
-      "Cree un serveur Paper ou Paper + VMC et le launcher generera son dossier gere automatiquement.",
+      "Crée un serveur Paper ou Paper + VMC et le launcher générera son dossier géré automatiquement.",
     cta: "Créer mon premier serveur",
   },
 };

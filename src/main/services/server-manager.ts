@@ -1,6 +1,7 @@
 import { execFile, spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { copyFile, mkdir, readFile, readdir, stat, writeFile, rm, rename, cp } from "node:fs/promises";
 import { availableParallelism } from "node:os";
+import { createServer } from "node:net";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { promisify } from "node:util";
@@ -17,7 +18,6 @@ import type {
   ServerRecord,
   ServerStats,
   UpdateServerSettingsPayload,
-  UpdateServerDisplayNamePayload,
   UpdateVmcSettingsPayload,
 } from "../../shared/contracts";
 import { DEFAULT_SERVER_SETTINGS } from "../../shared/contracts";
@@ -46,10 +46,11 @@ interface RuntimeState {
   processes: Partial<Record<"paper" | "velocity", RuntimeProcess>>;
   stats: ServerStats;
   statsTimer: NodeJS.Timeout | null;
+  lastStorageCheck?: number;
 }
 
 const MAX_CONSOLE_LINES = 500;
-const STATS_REFRESH_INTERVAL_MS = 2_000;
+const STATS_REFRESH_INTERVAL_MS = 1_000;
 const MAX_EDITABLE_FILE_BYTES = 1024 * 1024;
 const execFileAsync = promisify(execFile);
 
@@ -69,6 +70,10 @@ export class ServerManager {
       cacheDir,
       () => process.env.VMC_CURSEFORGE_API_KEY?.trim() || null,
     );
+  }
+
+  async start() {
+    void this.cleanupZombieProcesses();
   }
 
   getActiveServerId(): string | null {
@@ -92,6 +97,9 @@ export class ServerManager {
       payload,
       serverUuid,
     );
+    const paperPort = await this.findAvailablePort(25565);
+    const velocityPort = payload.kind === "paper-vmc" ? await this.findAvailablePort(paperPort + 1) : null;
+
     const server: PersistedServerRecord = {
       serverUuid,
       ownerAccountId: owner.id,
@@ -106,8 +114,8 @@ export class ServerManager {
       updatedAt: now,
       lastPlayedAt: null,
       rootDir,
-      paperPort: payload.kind === "paper" ? portBlock : portBlock + 1,
-      velocityPort: payload.kind === "paper-vmc" ? portBlock : null,
+      paperPort,
+      velocityPort,
       settings: {
         ...DEFAULT_SERVER_SETTINGS,
         motd: payload.displayName.trim(),
@@ -131,13 +139,52 @@ export class ServerManager {
     return server;
   }
 
+  async deleteServer(serverUuid: string): Promise<void> {
+    const server = this.stateStore.findServer(serverUuid);
+    if (!server) return;
+    
+    if (this.runtimes.has(serverUuid)) {
+      throw new Error("Impossible de supprimer un serveur en cours d'exécution.");
+    }
+
+    const token = this.stateStore.getAuthToken();
+    if (token) {
+      try {
+        await this.authClient.deleteRemoteServer(token, this.stateStore.getDeviceId(), serverUuid);
+      } catch (err) {
+        console.warn(`Echec de la suppression distante du serveur ${serverUuid}:`, err);
+        // On continue quand même la suppression locale
+      }
+    }
+    
+    await this.stateStore.deleteServer(serverUuid);
+    await rm(server.rootDir, { recursive: true, force: true }).catch(() => {});
+    this.emitEvent({ type: "state-changed" });
+  }
+
+  async renameServer(serverUuid: string, newName: string): Promise<ServerRecord> {
+    const updated = await this.stateStore.updateServer(serverUuid, (server) => {
+      server.displayName = newName;
+      return server;
+    });
+
+    const token = this.stateStore.getAuthToken();
+    if (token) {
+      await this.authClient.renameRemoteServer(token, this.stateStore.getDeviceId(), serverUuid, newName).catch((err) => {
+        console.warn(`Echec du renommage distant du serveur ${serverUuid}:`, err);
+      });
+    }
+
+    this.emitEvent({ type: "server-updated", serverUuid });
+    return updated;
+  }
+
   async getServerDetails(serverUuid: string): Promise<ServerDetails> {
     const server = this.requireServer(serverUuid);
     const runtime = this.runtimes.get(serverUuid);
     const stats = {
       ...(runtime?.stats ?? buildInitialStats(server)),
       uptimeSeconds: runtime?.startedAt ? Math.max(0, Math.floor((Date.now() - runtime.startedAt) / 1000)) : 0,
-      storageMb: Math.ceil((await measureDirectoryBytes(server.rootDir)) / (1024 * 1024)),
     };
 
     return {
@@ -175,6 +222,12 @@ export class ServerManager {
 
     try {
       const javaExecutable = await this.javaManager.ensureJavaExecutable();
+      
+      const isPortAvailable = await checkPortAvailability(server.paperPort);
+      if (!isPortAvailable) {
+        throw new Error(`Le port ${server.paperPort} est déjà utilisé par une autre application. Veuillez fermer l'application qui l'utilise ou changer le port dans les réglages.`);
+      }
+
       await this.prepareServerFiles(server);
 
       const paperJar = path.join(server.rootDir, "paper", "paper.jar");
@@ -308,7 +361,8 @@ export class ServerManager {
 
   async writeServerFile(serverUuid: string, relativePath: string, content: string) {
     const server = this.requireServer(serverUuid);
-    const absolutePath = await this.resolveEditableFilePath(server, relativePath);
+    const absolutePath = await this.resolveWritableFilePath(server, relativePath);
+    await mkdir(path.dirname(absolutePath), { recursive: true });
     await writeFile(absolutePath, content, "utf8");
     const fileStat = await stat(absolutePath);
     this.emitEvent({ type: "server-updated", serverUuid });
@@ -357,33 +411,6 @@ export class ServerManager {
       await this.writeVelocityConfiguration(updated);
     }
     return updated;
-  }
-
-  async updateServerDisplayName(payload: { serverUuid: string; displayName: string }): Promise<ServerRecord> {
-    const displayName = payload.displayName.trim();
-    if (!displayName) {
-      throw new Error("Le nom du serveur ne peut pas être vide");
-    }
-    const updated = await this.patchServer(payload.serverUuid, (server) => ({
-      ...server,
-      displayName,
-      updatedAt: new Date().toISOString(),
-    }));
-    this.emitEvent({ type: "server-updated", serverUuid: payload.serverUuid });
-    return updated;
-  }
-
-  async deleteServer(serverUuid: string): Promise<void> {
-    const server = this.requireServer(serverUuid);
-    
-    // Stop server if running
-    if (this.runtimes.has(serverUuid)) {
-      await this.stopServer(serverUuid);
-    }
-    
-    // Remove from state
-    await this.stateStore.deleteServer(serverUuid);
-    this.emitEvent({ type: "state-changed" });
   }
 
   private async prepareServerFiles(server: PersistedServerRecord): Promise<void> {
@@ -491,10 +518,10 @@ export class ServerManager {
   }
 
   private startStatsPolling(server: PersistedServerRecord, runtime: RuntimeState): void {
-    this.stopStatsPolling(runtime);
-    void this.refreshRuntimeStats(server, runtime);
     runtime.statsTimer = setInterval(() => {
-      void this.refreshRuntimeStats(server, runtime);
+      this.refreshRuntimeStats(server, runtime).catch((err) => {
+        console.error(`Stats polling failed for ${server.serverUuid}:`, err);
+      });
     }, STATS_REFRESH_INTERVAL_MS);
   }
 
@@ -512,13 +539,22 @@ export class ServerManager {
       .filter((pid): pid is number => typeof pid === "number" && pid > 0);
 
     const processStats = pids.length > 0 ? await collectProcessStats(pids) : { cpuPercent: 0, ramUsedMb: 0 };
+    
+    // On ne recalcule le stockage que toutes les 30 secondes pour économiser les ressources
+    let storageMb = runtime.stats.storageMb;
+    const now = Date.now();
+    if (!runtime.lastStorageCheck || now - runtime.lastStorageCheck > 30_000) {
+      storageMb = Math.ceil((await measureDirectoryBytes(server.rootDir)) / (1024 * 1024));
+      runtime.lastStorageCheck = now;
+    }
+
     runtime.stats = {
       uptimeSeconds: runtime.startedAt ? Math.max(0, Math.floor((Date.now() - runtime.startedAt) / 1000)) : 0,
       cpuPercent: processStats.cpuPercent,
       cpuLimitPercent: 100,
       ramUsedMb: processStats.ramUsedMb,
       ramLimitMb: getRamLimitMb(server),
-      storageMb: runtime.stats.storageMb,
+      storageMb,
     };
     this.emitEvent({ type: "server-updated", serverUuid: server.serverUuid });
   }
@@ -538,6 +574,66 @@ export class ServerManager {
     const updated = await this.stateStore.updateServer(serverUuid, updater);
     this.emitEvent({ type: "server-updated", serverUuid });
     return updated;
+  }
+
+  async resolveSafePath(serverUuid: string, relativePath: string): Promise<string> {
+    const server = this.requireServer(serverUuid);
+    const sanitized = relativePath.trim();
+    if (!sanitized) return server.rootDir;
+    const normalized = path.normalize(sanitized);
+    const absolutePath = path.resolve(server.rootDir, normalized);
+    const rootDir = path.resolve(server.rootDir);
+    if (absolutePath !== rootDir && !absolutePath.startsWith(`${rootDir}${path.sep}`)) {
+      throw new Error("Acces fichier refuse.");
+    }
+    return absolutePath;
+  }
+
+  async deleteServerFiles(serverUuid: string, relativePaths: string[]): Promise<void> {
+    for (const relPath of relativePaths) {
+      const absPath = await this.resolveSafePath(serverUuid, relPath);
+      await rm(absPath, { recursive: true, force: true });
+    }
+    this.emitEvent({ type: "server-updated", serverUuid });
+  }
+
+  async copyServerFiles(serverUuid: string, relativePaths: string[], destRelativePath: string): Promise<void> {
+    const destDir = await this.resolveSafePath(serverUuid, destRelativePath);
+    for (const relPath of relativePaths) {
+      const srcPath = await this.resolveSafePath(serverUuid, relPath);
+      const name = path.basename(srcPath);
+      const targetPath = path.join(destDir, name);
+      await cp(srcPath, targetPath, { recursive: true });
+    }
+    this.emitEvent({ type: "server-updated", serverUuid });
+  }
+
+  async moveServerFiles(serverUuid: string, relativePaths: string[], destRelativePath: string): Promise<void> {
+    const destDir = await this.resolveSafePath(serverUuid, destRelativePath);
+    for (const relPath of relativePaths) {
+      const srcPath = await this.resolveSafePath(serverUuid, relPath);
+      const name = path.basename(srcPath);
+      const targetPath = path.join(destDir, name);
+      await rename(srcPath, targetPath);
+    }
+    this.emitEvent({ type: "server-updated", serverUuid });
+  }
+
+  async createServerDirectory(serverUuid: string, relativePath: string): Promise<void> {
+    const absPath = await this.resolveSafePath(serverUuid, relativePath);
+    await mkdir(absPath, { recursive: true });
+    this.emitEvent({ type: "server-updated", serverUuid });
+  }
+
+  async uploadServerFiles(serverUuid: string, filePaths: string[], destRelativePath: string): Promise<void> {
+    const destDir = await this.resolveSafePath(serverUuid, destRelativePath);
+    await mkdir(destDir, { recursive: true });
+    for (const srcPath of filePaths) {
+      const name = path.basename(srcPath);
+      const targetPath = path.join(destDir, name);
+      await cp(srcPath, targetPath, { recursive: true });
+    }
+    this.emitEvent({ type: "server-updated", serverUuid });
   }
 
   private async resolveEditableFilePath(server: PersistedServerRecord, relativePath: string): Promise<string> {
@@ -560,6 +656,107 @@ export class ServerManager {
 
     return absolutePath;
   }
+
+  private async resolveWritableFilePath(server: PersistedServerRecord, relativePath: string): Promise<string> {
+    const sanitized = relativePath.trim();
+    if (!sanitized) {
+      throw new Error("Chemin de fichier invalide.");
+    }
+
+    const normalized = path.normalize(sanitized);
+    const absolutePath = path.resolve(server.rootDir, normalized);
+    const rootDir = path.resolve(server.rootDir);
+    if (absolutePath !== rootDir && !absolutePath.startsWith(`${rootDir}${path.sep}`)) {
+      throw new Error("Acces fichier refuse.");
+    }
+
+    const targetName = path.basename(absolutePath);
+    if (!targetName || targetName === "." || targetName === "..") {
+      throw new Error("Nom de fichier invalide.");
+    }
+
+    try {
+      const fileStat = await stat(absolutePath);
+      if (!fileStat.isFile()) {
+        throw new Error("Seuls les fichiers peuvent etre modifies.");
+      }
+    } catch (error) {
+      const typedError = error as NodeJS.ErrnoException;
+      if (typedError.code && typedError.code !== "ENOENT") {
+        throw error;
+      }
+    }
+
+    return absolutePath;
+  }
+
+  async findAvailablePort(startPort: number): Promise<number> {
+    let port = startPort;
+    // On vérifie aussi les ports déjà attribués en base
+    const usedPorts = new Set(
+      this.stateStore.getServers().flatMap(s => [s.paperPort, s.velocityPort].filter(Boolean) as number[])
+    );
+
+    while (port < 65535) {
+      if (!usedPorts.has(port)) {
+        const isFree = await checkPortAvailability(port);
+        if (isFree) return port;
+      }
+      port++;
+    }
+    throw new Error("Aucun port disponible trouve.");
+  }
+
+  async cleanupZombieProcesses(): Promise<void> {
+    const serversDir = this.stateStore.getPaths().serversDir;
+    try {
+      if (process.platform === "win32") {
+        const { stdout } = await execFileAsync("wmic", ["process", "where", "name='java.exe'", "get", "commandline,processid"]);
+        const lines = stdout.split(/\r?\n/).slice(1).filter(Boolean);
+        for (const line of lines) {
+          if (line.includes(serversDir) && (line.includes("paper.jar") || line.includes("velocity.jar"))) {
+            const match = line.match(/(\d+)\s*$/);
+            if (match) {
+              process.kill(Number.parseInt(match[1], 10), "SIGTERM");
+            }
+          }
+        }
+      } else {
+        const { stdout } = await execFileAsync("ps", ["-eo", "pid,command"]);
+        const lines = stdout.split(/\r?\n/).slice(1).filter(Boolean);
+        const myPid = process.pid;
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.includes(serversDir) && (trimmed.includes("paper.jar") || trimmed.includes("velocity.jar"))) {
+            const pid = Number.parseInt(trimmed.split(/\s+/)[0], 10);
+            if (!Number.isNaN(pid) && pid !== myPid) {
+              process.kill(pid, "SIGTERM");
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Echec du nettoyage des processus fantomes:", err);
+    }
+  }
+}
+
+function checkPortAvailability(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const server = createServer();
+    server.once("error", (err: any) => {
+      if (err.code === "EADDRINUSE") {
+        resolve(false);
+      } else {
+        resolve(true); // Autre erreur, on assume que c'est ok ou géré plus tard
+      }
+    });
+    server.once("listening", () => {
+      server.close();
+      resolve(true);
+    });
+    server.listen(port, "127.0.0.1");
+  });
 }
 
 function appendOutput(
@@ -679,33 +876,37 @@ async function collectPosixProcessStats(pids: number[]): Promise<Pick<ServerStat
 }
 
 async function collectWindowsProcessStats(pids: number[]): Promise<Pick<ServerStats, "cpuPercent" | "ramUsedMb">> {
+  // On utilise Get-Process pour la RAM (WorkingSet64)
+  // Pour le CPU on utilise Win32_PerfFormattedData_PerfProc_Process qui est déjà formaté en pourcentage
   const powershellScript = [
     `$ids = @(${pids.join(",")})`,
-    "Get-CimInstance Win32_PerfFormattedData_PerfProc_Process |",
-    "  Where-Object { $ids -contains $_.IDProcess } |",
-    "  ForEach-Object { \"{0}|{1}|{2}\" -f $_.IDProcess, $_.PercentProcessorTime, $_.WorkingSet }",
-  ].join(" ");
-  const { stdout } = await execFileAsync("powershell", [
-    "-NoProfile",
-    "-Command",
-    powershellScript,
-  ]);
+    "$p = Get-Process -Id $ids -ErrorAction SilentlyContinue",
+    "if ($p) {",
+    "  $ws = ($p | Measure-Object -Property WorkingSet64 -Sum).Sum",
+    "  $cpu = (Get-CimInstance Win32_PerfFormattedData_PerfProc_Process -ErrorAction SilentlyContinue | Where-Object { $ids -contains $_.IDProcess } | Measure-Object -Property PercentProcessorTime -Sum).Sum",
+    "  \"$cpu|$ws\"",
+    "} else { \"0|0\" }"
+  ].join("; ");
 
-  const lines = stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-  const cpuCores = Math.max(1, availableParallelism());
-  let totalCpu = 0;
-  let totalWorkingSet = 0;
+  try {
+    const { stdout } = await execFileAsync("powershell", [
+      "-NoProfile",
+      "-Command",
+      powershellScript,
+    ]);
 
-  for (const line of lines) {
-    const [, cpuRaw, workingSetRaw] = line.split("|");
-    totalCpu += Number.parseFloat(cpuRaw) || 0;
-    totalWorkingSet += Number.parseInt(workingSetRaw ?? "0", 10) || 0;
+    const [cpuRaw, wsRaw] = stdout.trim().split("|");
+    const totalCpu = Number.parseFloat(cpuRaw?.replace(',', '.') || "0");
+    const totalWs = Number.parseInt(wsRaw || "0", 10);
+    const cpuCores = Math.max(1, availableParallelism());
+
+    return {
+      cpuPercent: Math.max(0, Math.round((totalCpu / cpuCores) * 10) / 10),
+      ramUsedMb: Math.max(0, Math.round(totalWs / (1024 * 1024))),
+    };
+  } catch {
+    return { cpuPercent: 0, ramUsedMb: 0 };
   }
-
-  return {
-    cpuPercent: Math.max(0, Math.round((totalCpu / cpuCores) * 10) / 10),
-    ramUsedMb: Math.max(0, Math.round(totalWorkingSet / (1024 * 1024))),
-  };
 }
 
 function stripAnsi(value: string): string {
@@ -775,20 +976,36 @@ async function readManagedFiles(rootDir: string) {
 }
 
 async function walkManagedFiles(rootDir: string, currentDir: string, results: ServerDetails["files"]): Promise<void> {
-  const entries = await readdir(currentDir, { withFileTypes: true });
+  let entries;
+  try {
+    entries = await readdir(currentDir, { withFileTypes: true });
+  } catch (err) {
+    console.warn(`[ServerManager] Impossible de lire le dossier ${currentDir}:`, err);
+    return;
+  }
+
   for (const entry of entries) {
     const absolutePath = path.join(currentDir, entry.name);
-    const fileStat = await stat(absolutePath);
-    const relativePath = path.relative(rootDir, absolutePath) || entry.name;
-    results.push({
-      name: entry.name,
-      path: relativePath,
-      kind: entry.isDirectory() ? "directory" : "file",
-      size: fileStat.size,
-      modifiedAt: fileStat.mtime.toISOString(),
-    });
-    if (entry.isDirectory() && relativePath.split(path.sep).length < 3) {
-      await walkManagedFiles(rootDir, absolutePath, results);
+    try {
+      const fileStat = await stat(absolutePath);
+      const relativePath = path.relative(rootDir, absolutePath) || entry.name;
+      
+      results.push({
+        name: entry.name,
+        path: relativePath,
+        kind: entry.isDirectory() ? "directory" : "file",
+        size: fileStat.size,
+        modifiedAt: fileStat.mtime.toISOString(),
+      });
+
+      // On limite la récursion pour éviter de scanner tout le disque si un lien symbolique traîne
+      if (entry.isDirectory() && relativePath.split(path.sep).length < 4) {
+        await walkManagedFiles(rootDir, absolutePath, results);
+      }
+    } catch (err) {
+      // Le fichier a pu être supprimé entre le readdir et le stat (fréquent sur MC)
+      console.debug(`[ServerManager] Fichier ignoré (disparu): ${absolutePath}`);
+      continue;
     }
   }
 }

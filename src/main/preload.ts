@@ -1,9 +1,10 @@
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer, webUtils } from "electron";
 
 // Expose safe APIs to renderer process
 contextBridge.exposeInMainWorld("electronAPI", {
   versions: process.versions,
   platform: process.platform,
+  getPathForFile: (file: File) => webUtils.getPathForFile(file),
 });
 
 // Expose vmcLauncher API
@@ -14,6 +15,8 @@ contextBridge.exposeInMainWorld("vmcLauncher", {
   login: (payload: any) => ipcRenderer.invoke("launcher:login", payload),
   logout: () => ipcRenderer.invoke("launcher:logout"),
   createServer: (payload: any) => ipcRenderer.invoke("launcher:createServer", payload),
+  deleteServer: (id: string) => ipcRenderer.invoke("launcher:deleteServer", id),
+  renameServer: (id: string, name: string) => ipcRenderer.invoke("launcher:renameServer", id, name),
   openServerWindow: (id: string) => ipcRenderer.invoke("launcher:openServerWindow", id),
   startServer: (id: string) => ipcRenderer.invoke("launcher:startServer", id),
   stopServer: (id: string) => ipcRenderer.invoke("launcher:stopServer", id),
@@ -24,13 +27,12 @@ contextBridge.exposeInMainWorld("vmcLauncher", {
   copyServerFiles: (id: string, relativePaths: string[], destRelativePath: string) => ipcRenderer.invoke("launcher:copyServerFiles", id, relativePaths, destRelativePath),
   moveServerFiles: (id: string, relativePaths: string[], destRelativePath: string) => ipcRenderer.invoke("launcher:moveServerFiles", id, relativePaths, destRelativePath),
   createServerDirectory: (id: string, relativePath: string) => ipcRenderer.invoke("launcher:createServerDirectory", id, relativePath),
-  uploadServerFiles: (id: string, destRelativePath: string) => ipcRenderer.invoke("launcher:uploadServerFiles", id, destRelativePath),
+  uploadServerFiles: (id: string, destRelativePath: string, filePaths?: string[]) => ipcRenderer.invoke("launcher:uploadServerFiles", id, destRelativePath, filePaths),
   searchPlugins: (payload: any) => ipcRenderer.invoke("launcher:searchPlugins", payload),
   installPlugin: (payload: any) => ipcRenderer.invoke("launcher:installPlugin", payload),
   updateServerSettings: (payload: any) => ipcRenderer.invoke("launcher:updateServerSettings", payload),
-  updateServerDisplayName: (payload: any) => ipcRenderer.invoke("launcher:updateServerDisplayName", payload),
-  deleteServer: (id: string) => ipcRenderer.invoke("launcher:deleteServer", id),
   updateVmcSettings: (payload: any) => ipcRenderer.invoke("launcher:updateVmcSettings", payload),
+  log: (...args: any[]) => ipcRenderer.invoke("launcher:log", ...args),
   onEvent: (callback: () => void) => {
     ipcRenderer.on("launcher:event", callback);
     return () => ipcRenderer.removeListener("launcher:event", callback);

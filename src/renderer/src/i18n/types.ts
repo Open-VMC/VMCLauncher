@@ -112,6 +112,19 @@ export interface Translations {
     saving: string;
     loadingFile: string;
     editorPlaceholder: string;
+    newFile: string;
+    createDirectory: string;
+    upload: string;
+    back: string;
+    emptyFolder: string;
+    rename: string;
+    delete: string;
+    deleteServerConfirm: string;
+    renameServer: string;
+    renameServerHint: string;
+    serverName: string;
+    rename_action: string;
+    saving_action: string;
   };
 
   // ── Plugins ───────────────────────────────────────────────────────────────

@@ -182,11 +182,6 @@ export interface UpdateServerSettingsPayload {
   settings: ServerSettings;
 }
 
-export interface UpdateServerDisplayNamePayload {
-  serverUuid: string;
-  displayName: string;
-}
-
 export interface UpdateVmcSettingsPayload {
   serverUuid: string;
   vmc: Pick<VmcSettings, "slug" | "mode" | "whitelist">;
@@ -204,6 +199,8 @@ export interface VmcLauncherApi {
   login(payload: AuthPayload): Promise<AccountSummary>;
   logout(): Promise<void>;
   createServer(payload: CreateServerPayload): Promise<ServerRecord>;
+  deleteServer(serverUuid: string): Promise<void>;
+  renameServer(serverUuid: string, newName: string): Promise<ServerRecord>;
   openServerWindow(serverUuid: string): Promise<void>;
   startServer(serverUuid: string): Promise<void>;
   stopServer(serverUuid: string): Promise<void>;
@@ -214,12 +211,10 @@ export interface VmcLauncherApi {
   copyServerFiles(serverUuid: string, relativePaths: string[], destRelativePath: string): Promise<void>;
   moveServerFiles(serverUuid: string, relativePaths: string[], destRelativePath: string): Promise<void>;
   createServerDirectory(serverUuid: string, relativePath: string): Promise<void>;
-  uploadServerFiles(serverUuid: string, destRelativePath: string): Promise<void>;
+  uploadServerFiles(serverUuid: string, destRelativePath: string, filePaths?: string[]): Promise<void>;
   searchPlugins(payload: PluginSearchRequest): Promise<PluginSearchResult[]>;
   installPlugin(payload: PluginInstallRequest): Promise<PluginInstallResult>;
   updateServerSettings(payload: UpdateServerSettingsPayload): Promise<ServerRecord>;
-  updateServerDisplayName(payload: UpdateServerDisplayNamePayload): Promise<ServerRecord>;
-  deleteServer(serverUuid: string): Promise<void>;
   updateVmcSettings(payload: UpdateVmcSettingsPayload): Promise<ServerRecord>;
   onEvent(listener: (event: LauncherEvent) => void): () => void;
 }

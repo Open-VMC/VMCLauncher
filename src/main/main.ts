@@ -9,7 +9,6 @@ import type {
   PluginSearchRequest,
   ServerDetails,
   UpdateServerSettingsPayload,
-  UpdateServerDisplayNamePayload,
   UpdateVmcSettingsPayload,
 } from "../shared/contracts";
 import { SERVER_CATALOG } from "../shared/contracts";
@@ -50,7 +49,9 @@ async function initializeServices(): Promise<void> {
     paths.cacheDir,
     broadcastEvent,
   );
+  await serverManager.start();
 }
+
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -75,11 +76,15 @@ function createWindow() {
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
+
+  mainWindow.webContents.on("did-fail-load", (event, errorCode, errorDescription) => {
+    console.error(`[Main] Renderer failed to load: ${errorCode} - ${errorDescription}`);
+  });
 }
 
 ipcMain.handle("launcher:getSnapshot", async (): Promise<LauncherSnapshot> => {
   await ensureServicesReady();
-  await refreshRemoteAccountIfNeeded();
+  // await refreshRemoteAccountIfNeeded();
   return stateStore.getSnapshot(serverManager.getActiveServerId(), SERVER_CATALOG);
 });
 
@@ -120,6 +125,20 @@ ipcMain.handle("launcher:createServer", async (_, payload: CreateServerPayload) 
   const server = await serverManager.createServer(payload);
   broadcastEvent({ type: "server-updated", serverUuid: server.serverUuid });
   return server;
+});
+
+ipcMain.handle("launcher:deleteServer", async (_, serverUuid: string) => {
+  await ensureServicesReady();
+  const result = await serverManager.deleteServer(serverUuid);
+  broadcastEvent({ type: "state-changed" });
+  return result;
+});
+
+ipcMain.handle("launcher:renameServer", async (_, serverUuid: string, newName: string) => {
+  await ensureServicesReady();
+  const result = await serverManager.renameServer(serverUuid, newName);
+  broadcastEvent({ type: "state-changed" });
+  return result;
 });
 
 ipcMain.handle("launcher:openServerWindow", async (_, serverUuid: string) => {
@@ -178,9 +197,11 @@ ipcMain.handle("launcher:readServerFile", async (_, serverUuid: string, relative
 });
 
 ipcMain.handle("launcher:writeServerFile", async (_, serverUuid: string, relativePath: string, content: string) => {
+  console.log(`[IPC] writeServerFile: ${serverUuid}, path: ${relativePath}`);
   await ensureServicesReady();
   return serverManager.writeServerFile(serverUuid, relativePath, content);
 });
+
 
 ipcMain.handle("launcher:deleteServerFiles", async (_, serverUuid: string, relativePaths: string[]) => {
   await ensureServicesReady();
@@ -198,12 +219,17 @@ ipcMain.handle("launcher:moveServerFiles", async (_, serverUuid: string, relativ
 });
 
 ipcMain.handle("launcher:createServerDirectory", async (_, serverUuid: string, relativePath: string) => {
+  console.log(`[IPC] createServerDirectory: ${serverUuid}, path: ${relativePath}`);
   await ensureServicesReady();
   return serverManager.createServerDirectory(serverUuid, relativePath);
 });
 
-ipcMain.handle("launcher:uploadServerFiles", async (event, serverUuid: string, destRelativePath: string) => {
+ipcMain.handle("launcher:uploadServerFiles", async (event, serverUuid: string, destRelativePath: string, filePaths?: string[]) => {
+  console.log(`[IPC] uploadServerFiles: ${serverUuid}, dest: ${destRelativePath}, hasPaths: ${!!filePaths}`);
   await ensureServicesReady();
+  if (filePaths && filePaths.length > 0) {
+    return serverManager.uploadServerFiles(serverUuid, filePaths, destRelativePath);
+  }
   const win = BrowserWindow.fromWebContents(event.sender);
   if (!win) throw new Error("Window not found");
   const result = await dialog.showOpenDialog(win, {
@@ -229,19 +255,13 @@ ipcMain.handle("launcher:updateServerSettings", async (_, payload: UpdateServerS
   return serverManager.updateServerSettings(payload);
 });
 
-ipcMain.handle("launcher:updateServerDisplayName", async (_, payload: any) => {
-  await ensureServicesReady();
-  return serverManager.updateServerDisplayName(payload);
-});
-
-ipcMain.handle("launcher:deleteServer", async (_, serverUuid: string) => {
-  await ensureServicesReady();
-  return serverManager.deleteServer(serverUuid);
-});
-
 ipcMain.handle("launcher:updateVmcSettings", async (_, payload: UpdateVmcSettingsPayload) => {
   await ensureServicesReady();
   return serverManager.updateVmcSettings(payload);
+});
+
+ipcMain.handle("launcher:log", (_, ...args: any[]) => {
+  console.log("[Renderer Log]", ...args);
 });
 
 function broadcastEvent(event: LauncherEvent) {

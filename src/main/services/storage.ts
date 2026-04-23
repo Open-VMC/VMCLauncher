@@ -68,13 +68,16 @@ export class LauncherStateStore {
   }
 
   async load(): Promise<void> {
+    console.log("[Storage] Loading state from:", this.paths.stateFile);
     try {
       const raw = await readFile(this.paths.stateFile, "utf8");
       this.state = {
         ...DEFAULT_STATE(),
         ...JSON.parse(raw),
       } as PersistedStateFile;
+      console.log("[Storage] State loaded successfully.");
     } catch {
+      console.log("[Storage] No state file found or error, using default.");
       this.state = DEFAULT_STATE();
       await this.save();
     }
@@ -169,11 +172,10 @@ export class LauncherStateStore {
 
   async deleteServer(serverUuid: string): Promise<void> {
     const index = this.state.servers.findIndex((server) => server.serverUuid === serverUuid);
-    if (index === -1) {
-      throw new Error("Server not found");
+    if (index !== -1) {
+      this.state.servers.splice(index, 1);
+      await this.save();
     }
-    this.state.servers.splice(index, 1);
-    await this.save();
   }
 
   getNextPortBlock(): number {

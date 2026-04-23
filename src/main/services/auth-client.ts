@@ -1,6 +1,6 @@
 import type { AccountSummary, AuthPayload, CreateServerPayload } from "../../shared/contracts";
 
-const DEFAULT_AUTH_API_BASE_URL = "http://217.182.205.254:25582";
+const DEFAULT_AUTH_API_BASE_URL = "http://217.182.205.254:25585";
 
 interface AuthApiResponse {
   token: string;
@@ -19,7 +19,7 @@ export class OpenVmcAuthClient {
   }
 
   async register(payload: AuthPayload, deviceId: string): Promise<AuthApiResponse> {
-    return this.request<AuthApiResponse>("/api/openvmc/auth/register", {
+    return this.request<AuthApiResponse>("/v1/auth/register", {
       method: "POST",
       body: JSON.stringify({
         email: payload.email,
@@ -32,7 +32,7 @@ export class OpenVmcAuthClient {
   }
 
   async login(payload: AuthPayload, deviceId: string): Promise<AuthApiResponse> {
-    return this.request<AuthApiResponse>("/api/openvmc/auth/login", {
+    return this.request<AuthApiResponse>("/v1/auth/login", {
       method: "POST",
       body: JSON.stringify({
         email: payload.email,
@@ -44,7 +44,7 @@ export class OpenVmcAuthClient {
   }
 
   async getMe(token: string, deviceId: string): Promise<AccountSummary> {
-    return this.request<AccountSummary>("/api/openvmc/auth/me", {
+    return this.request<AccountSummary>("/v1/auth/session", {
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -54,8 +54,8 @@ export class OpenVmcAuthClient {
   }
 
   async logout(token: string, deviceId: string): Promise<void> {
-    await this.request<void>("/api/openvmc/auth/logout", {
-      method: "POST",
+    await this.request<void>("/v1/auth/session", {
+      method: "DELETE",
       headers: {
         Authorization: `Bearer ${token}`,
         "X-OpenVMC-Device-Id": deviceId,
@@ -64,7 +64,7 @@ export class OpenVmcAuthClient {
   }
 
   async createRemoteServer(token: string, deviceId: string, payload: CreateServerPayload, localServerUuid: string): Promise<RemoteServerReservation> {
-    return this.request<RemoteServerReservation>("/api/openvmc/servers", {
+    return this.request<RemoteServerReservation>("/v1/launcher/servers", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -75,6 +75,29 @@ export class OpenVmcAuthClient {
         displayName: payload.displayName,
         kind: payload.kind,
         version: payload.version,
+      }),
+    });
+  }
+
+  async deleteRemoteServer(token: string, deviceId: string, serverId: string): Promise<void> {
+    await this.request<void>(`/v1/launcher/servers/${serverId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "X-OpenVMC-Device-Id": deviceId,
+      },
+    });
+  }
+
+  async renameRemoteServer(token: string, deviceId: string, serverId: string, newName: string): Promise<void> {
+    await this.request<void>(`/v1/launcher/servers/${serverId}`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "X-OpenVMC-Device-Id": deviceId,
+      },
+      body: JSON.stringify({
+        displayName: newName,
       }),
     });
   }

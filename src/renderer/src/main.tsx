@@ -4,10 +4,10 @@ import { App } from "./App"; // Corrected import path
 import { I18nProvider } from "./i18n";
 import "./styles/app.css";
 
+console.log("[Renderer] main.tsx executing...");
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <I18nProvider>
-      <App />
-    </I18nProvider>
-  </React.StrictMode>
+  <I18nProvider>
+    <App />
+  </I18nProvider>
 );
