@@ -1,6 +1,6 @@
 {
   "name": "vmc-launcher",
-  "version": "0.1-beta",
+  "version": "0.1.0-beta",
   "private": true,
   "description": "Desktop launcher for local minecraft servers",
   "author": "OpenVMC",
