@@ -79,8 +79,5 @@ jobs:
           path: |
             dist/*.dmg
             dist/*.exe
-            dist/*.zip
-            dist/*.deb
             dist/*.AppImage
-            dist/*.blockmap
           if-no-files-found: warn
