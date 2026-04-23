@@ -62,13 +62,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # On ajoute --publish never pour éviter qu'il ne demande les droits d'écriture
           if [ "$RUNNER_OS" == "macOS" ]; then
-            npm run dist:mac -- -c.publish=never
+            npm run dist:mac -- --publish never
           elif [ "$RUNNER_OS" == "Windows" ]; then
-            npm run dist:win -- -c.publish=never
+            npm run dist:win -- --publish never
           else
-            npm run dist:linux -- -c.publish=never
+            npm run dist:linux -- --publish never
           fi
         shell: bash
 
