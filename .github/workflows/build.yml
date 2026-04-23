@@ -14,6 +14,9 @@ on:
           - windows
           - linux
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -59,12 +62,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # On ajoute --publish never pour éviter qu'il ne demande les droits d'écriture
           if [ "$RUNNER_OS" == "macOS" ]; then
-            npm run dist:mac
+            npm run dist:mac -- -c.publish=never
           elif [ "$RUNNER_OS" == "Windows" ]; then
-            npm run dist:win
+            npm run dist:win -- -c.publish=never
           else
-            npm run dist:linux
+            npm run dist:linux -- -c.publish=never
           fi
         shell: bash
 
@@ -73,5 +77,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: vmc-launcher-${{ matrix.platform }}
-          path: dist/*.{dmg,exe,zip,deb,rpm,AppImage}
+          path: |
+            dist/*.dmg
+            dist/*.exe
+            dist/*.zip
+            dist/*.deb
+            dist/*.AppImage
+            dist/*.blockmap
           if-no-files-found: warn
