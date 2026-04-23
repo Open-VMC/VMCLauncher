@@ -49,10 +49,9 @@
       "dist-electron/**/*",
       "package.json"
     ],
-    "icon": "../assets/logo-mac.png",
     "mac": {
       "category": "public.app-category.games",
-      "icon": "./public/logo-mac.png"
+      "icon": "./public/logo-macOS.png"
     },
     "dmg": {
       "title": "VMC Launcher"
