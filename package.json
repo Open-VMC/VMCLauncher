@@ -1,15 +1,19 @@
 {
   "name": "vmc-launcher",
-  "version": "0.2.0",
+  "version": "0.1-beta",
   "private": true,
-  "description": "Desktop launcher for local Paper and Paper + VMC servers.",
+  "description": "Desktop launcher for local minecraft servers",
   "author": "OpenVMC",
   "main": "dist-electron/main/main.js",
   "scripts": {
     "dev": "concurrently -k \"vite --config vite.config.ts\" \"tsc -p tsconfig.main.json --watch\" \"wait-on tcp:5173 file:dist-electron/main/main.js && cross-env VMC_RENDERER_URL=http://127.0.0.1:5173 electron .\"",
     "build": "vite build --config vite.config.ts && tsc -p tsconfig.main.json",
     "start": "electron .",
-    "dist": "npm run build && electron-builder"
+    "dist": "npm run build && electron-builder",
+    "dist:mac": "npm run build && electron-builder --mac",
+    "dist:win": "npm run build && electron-builder --win",
+    "dist:linux": "npm run build && electron-builder --linux",
+    "dist:all": "npm run build && electron-builder -mwl"
   },
   "dependencies": {
     "react-bootstrap-icons": "^1.11.3",
@@ -30,7 +34,7 @@
     "concurrently": "^9.1.2",
     "cross-env": "^10.0.0",
     "electron": "^41.2.2",
-    "electron-builder": "^26.0.12",
+    "electron-builder": "25.1.8",
     "typescript": "^5.9.3",
     "vite": "^7.1.10",
     "wait-on": "^8.0.3"
@@ -49,6 +53,9 @@
     "mac": {
       "category": "public.app-category.games",
       "icon": "../assets/logo-mac.png"
+    },
+    "dmg": {
+      "title": "VMC Launcher"
     },
     "linux": {
       "icon": "../assets/logo-mac.png"
