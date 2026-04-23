@@ -27,23 +27,35 @@ jobs:
             platform: windows
           - os: ubuntu-latest
             platform: linux
-    # On ne lance que si l'input correspond ou si c'est "all"
-    if: ${{ github.event.inputs.platform == 'all' || github.event.inputs.platform == matrix.platform }}
 
     steps:
+      - name: Should run?
+        id: check
+        shell: bash
+        run: |
+          if [[ "${{ github.event.inputs.platform }}" == "all" || "${{ github.event.inputs.platform }}" == "${{ matrix.platform }}" ]]; then
+            echo "run=true" >> $GITHUB_OUTPUT
+          else
+            echo "run=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Checkout code
+        if: steps.check.outputs.run == 'true'
         uses: actions/checkout@v4
 
       - name: Install Node.js
+        if: steps.check.outputs.run == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
 
       - name: Install dependencies
+        if: steps.check.outputs.run == 'true'
         run: npm install
 
       - name: Build and Package
+        if: steps.check.outputs.run == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -57,8 +69,9 @@ jobs:
         shell: bash
 
       - name: Upload Artifacts
+        if: steps.check.outputs.run == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: vmc-launcher-${{ matrix.os }}
+          name: vmc-launcher-${{ matrix.platform }}
           path: dist/*.{dmg,exe,zip,deb,rpm,AppImage}
           if-no-files-found: warn
