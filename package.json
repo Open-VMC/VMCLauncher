@@ -43,7 +43,7 @@
     "appId": "com.openvmc.launcher",
     "productName": "VMC Launcher",
     "directories": {
-      "buildResources": "../assets"
+      "buildResources": "./assets"
     },
     "files": [
       "dist-electron/**/*",
@@ -52,16 +52,16 @@
     "icon": "../assets/logo-mac.png",
     "mac": {
       "category": "public.app-category.games",
-      "icon": "../assets/logo-mac.png"
+      "icon": "./public/logo-mac.png"
     },
     "dmg": {
       "title": "VMC Launcher"
     },
     "linux": {
-      "icon": "../assets/logo-mac.png"
+      "icon": "./public/logo-windows.png"
     },
     "win": {
-      "icon": "../assets/logo-mac.png"
+      "icon": "./public/logo-windows.png"
     }
   }
 }
