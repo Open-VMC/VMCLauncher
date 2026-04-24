@@ -54,7 +54,9 @@
       "icon": "./public/logo-macOS.png"
     },
     "dmg": {
-      "title": "VMC Launcher"
+      "title": "VMC Launcher",
+      "icon": "./public/icon-disk-macOS.png",
+      "background": "./public/background-disk-macOS.png"
     },
     "linux": {
       "icon": "./public/logo-windows.png"
