@@ -55,7 +55,8 @@
     },
     "dmg": {
       "title": "VMC Launcher",
-      "icon": "./public/icon-disk-macOS.png"
+      "icon": "./public/icon-disk-macOS.png",
+      "iconSize": 100
     },
     "linux": {
       "icon": "./public/logo-windows.png"
