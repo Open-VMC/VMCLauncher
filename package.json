@@ -1,68 +1,33 @@
 {
   "name": "vmc-launcher",
-  "version": "0.1.0-beta",
+  "version": "0.2.0-beta",
   "private": true,
   "description": "Desktop launcher for local minecraft servers",
   "author": "OpenVMC",
-  "main": "dist-electron/main/main.js",
   "scripts": {
-    "dev": "concurrently -k \"vite --config vite.config.ts\" \"tsc -p tsconfig.main.json --watch\" \"wait-on tcp:5173 file:dist-electron/main/main.js && cross-env VMC_RENDERER_URL=http://127.0.0.1:5173 electron .\"",
-    "build": "vite build --config vite.config.ts && tsc -p tsconfig.main.json",
-    "start": "electron .",
-    "dist": "npm run build && electron-builder",
-    "dist:mac": "npm run build && electron-builder --mac --universal",
-    "dist:win": "npm run build && electron-builder --win",
-    "dist:linux": "npm run build && electron-builder --linux",
-    "dist:all": "npm run build && electron-builder -mwl"
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "tauri": "tauri",
+    "tauri:build": "node scripts/build.mjs"
   },
   "dependencies": {
-    "react-bootstrap-icons": "^1.11.3",
-    "framer-motion": "^11.0.0",
+    "@tauri-apps/api": "^2.5.0",
+    "@tauri-apps/plugin-dialog": "^2.2.0",
+    "@tauri-apps/plugin-opener": "^2.5.5",
+    "framer-motion": "^13.2.0",
+    "lucide-react": "^1.45.0",
     "prismjs": "^1.30.0",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "react-simple-code-editor": "^0.14.1",
-    "three": "^0.170.0"
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-simple-code-editor": "^0.14.1"
   },
   "devDependencies": {
-    "@types/node": "^22.13.1",
+    "@tauri-apps/cli": "^2.5.0",
     "@types/prismjs": "^1.26.6",
-    "@types/react": "^19.2.2",
-    "@types/react-dom": "^19.2.2",
-    "@types/three": "^0.170.0",
-    "@vitejs/plugin-react": "^5.0.4",
-    "concurrently": "^9.1.2",
-    "cross-env": "^10.0.0",
-    "electron": "^41.2.2",
-    "electron-builder": "^26.0.12",
-    "typescript": "^5.9.3",
-    "vite": "^7.1.10",
-    "wait-on": "^8.0.3"
-  },
-  "build": {
-    "appId": "com.openvmc.launcher",
-    "productName": "VMC Launcher",
-    "directories": {
-      "buildResources": "./assets"
-    },
-    "files": [
-      "dist-electron/**/*",
-      "package.json"
-    ],
-    "mac": {
-      "category": "public.app-category.games",
-      "icon": "./public/logo-macOS.png"
-    },
-    "dmg": {
-      "title": "VMC Launcher",
-      "icon": "./public/icon-disk-macOS.png",
-      "iconSize": 100
-    },
-    "linux": {
-      "icon": "./public/logo-windows.png"
-    },
-    "win": {
-      "icon": "./public/logo-windows.png"
-    }
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0"
   }
 }

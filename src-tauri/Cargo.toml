@@ -1,0 +1,26 @@
+[package]
+name = "vmc-launcher"
+version = "0.2.0"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["devtools", "tray-icon", "image-png"] }
+tauri-plugin-autostart = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", features = ["json", "stream"] }
+uuid = { version = "1", features = ["v4"] }
+thiserror = "2"
+chrono = { version = "0.4", features = ["serde"] }
+slug = "0.1"
+futures-util = "0.3"
+sysinfo = "0.32"
+toml_edit = "0.22"
+zip = "2"
+serde_yaml = "0.9"
