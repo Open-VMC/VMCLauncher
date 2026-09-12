@@ -38,7 +38,6 @@ pub struct PersistedServerRecord {
     #[serde(flatten)]
     pub record: ServerRecord,
     pub paper_port: u16,
-    pub velocity_port: Option<u16>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

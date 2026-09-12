@@ -115,7 +115,6 @@ impl ServerManager {
         let persisted = PersistedServerRecord {
             record: record.clone(),
             paper_port,
-            velocity_port: None,
         };
         store.add_server(persisted)?;
 
@@ -1147,8 +1146,7 @@ fn find_jar_in(dir: &Path) -> Result<PathBuf, AppError> {
         if path.extension().map(|e| e == "jar").unwrap_or(false) {
             let name = path.file_name().unwrap_or_default().to_string_lossy();
             if name.starts_with("paper-")
-                || name.starts_with("velocity-")
-                || name.starts_with("fabric-server")
+    || name.starts_with("fabric-server")
                 || name.starts_with("forge-")
                 || name.starts_with("neoforge-")
             {

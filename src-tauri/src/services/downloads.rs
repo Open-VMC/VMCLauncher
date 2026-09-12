@@ -41,34 +41,6 @@ pub async fn resolve_paper_artifact(
     Ok(ArtifactInfo { url: download_url, file_name })
 }
 
-#[allow(dead_code)]
-pub async fn resolve_velocity_artifact(
-    client: &Client,
-    version: &str,
-) -> Result<ArtifactInfo, AppError> {
-    let url = format!("{PAPER_API}/projects/velocity/versions/{version}/builds");
-    let builds: Vec<serde_json::Value> = client.get(&url).send().await?.json().await?;
-
-    if builds.is_empty() {
-        return Err(AppError::Generic(format!("No builds found for Velocity {version}")));
-    }
-
-    let latest = builds
-        .iter()
-        .rev()
-        .find(|b| b["channel"].as_str() == Some("STABLE"))
-        .or_else(|| builds.last())
-        .ok_or_else(|| AppError::Generic(format!("Empty builds for Velocity {version}")))?;
-
-    let download_url = latest["downloads"]["server:default"]["url"]
-        .as_str()
-        .ok_or_else(|| AppError::Generic(format!("Missing download URL for Velocity {version}")))?
-        .to_string();
-
-    let file_name = download_url.split('/').last().unwrap_or("velocity.jar").to_string();
-
-    Ok(ArtifactInfo { url: download_url, file_name })
-}
 
 pub async fn check_pumpkin_latest_tag(client: &Client) -> Result<String, AppError> {
     let resp: Vec<serde_json::Value> = client
