@@ -226,7 +226,7 @@ impl ServerCatalogService {
     }
 }
 
-fn resolve_java_version(mc_version: &str) -> u32 {
+pub fn resolve_java_version(mc_version: &str) -> u32 {
     let parts: Vec<u32> = mc_version
         .split('.')
         .filter_map(|p| p.parse().ok())
@@ -234,18 +234,15 @@ fn resolve_java_version(mc_version: &str) -> u32 {
 
     let major = parts.first().copied().unwrap_or(1);
 
-    // New format since 2025: YY.N (e.g. 25.1, 26.2); Java 25
-    if major >= 2 && major != 1 {
+    // New versioning format since 2026: YY.N (e.g. 26.1, 26.2)
+    // All versions in this format require Java 25.
+    if major > 1 {
         return 25;
     }
 
     // Legacy 1.X.Y
     let minor = parts.get(1).copied().unwrap_or(0);
-    let patch = parts.get(2).copied().unwrap_or(0);
-    if minor >= 21 && patch >= 11 {
-        // 1.21.11+ ships with Java 25
-        25
-    } else if minor >= 21 {
+    if minor >= 21 {
         21
     } else if minor >= 17 {
         17

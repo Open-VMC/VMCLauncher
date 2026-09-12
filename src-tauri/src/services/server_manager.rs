@@ -2,6 +2,7 @@ use crate::error::AppError;
 use crate::models::*;
 use crate::services::downloads;
 use crate::services::java_runtime::JavaRuntimeManager;
+use crate::services::server_catalog::resolve_java_version;
 use crate::services::storage::{slugify, LauncherStateStore, PersistedServerRecord};
 use crate::AppState;
 use reqwest::Client;
@@ -77,7 +78,8 @@ impl ServerManager {
 
             (0, tag)
         } else {
-            let java_bin = java.ensure_java(&self.http).await?;
+            let required_java = resolve_java_version(&payload.version);
+            let java_bin = java.ensure_java_version(&self.http, required_java).await?;
 
             let artifact = downloads::resolve_paper_artifact(&self.http, &payload.version).await?;
             let jar_dest = server_dir.join("server.jar");
@@ -89,7 +91,7 @@ impl ServerManager {
             let java_link = server_dir.join(".java_path");
             tokio::fs::write(&java_link, java_bin.to_string_lossy().as_bytes()).await?;
 
-            (21, payload.version.clone())
+            (required_java, payload.version.clone())
         };
 
         let now = chrono::Utc::now().to_rfc3339();
