@@ -1,75 +1,51 @@
 # VMC Launcher
 
-VMC Launcher is a modern, high-performance desktop application designed for managing Minecraft servers. Built with Electron, React, and Vite, it offers a premium experience for server administrators with integrated tools for file editing, plugin management, and automated runtime handling.
+VMC Launcher lets you host a Minecraft server on your own computer: no terminal, no config files, no headaches. Download, click, play.
+
+**Free. Open source. No telemetry.**
 
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue)
 ![Version](https://img.shields.io/badge/version-0.1.0--beta-blue)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey)
 
-## Features
+## What it does
 
-- **Multi-Platform Distribution**: Ready for macOS (Universal), Windows, and Linux.
-- **Server Management**: Create and manage Paper servers with ease.
-- **Integrated Java Manager**: Automatically downloads and manages required OpenJDK runtimes.
-- **Advanced File Explorer**: A robust file manager with Drag & Drop support.
-- **High-Performance Code Editor**: Built-in editor with syntax highlighting for config files (powered by PrismJS).
-- **Plugin Marketplaces**: Direct integration with Modrinth and Hangar Paper.
-- **Stunning UI**: Modern glassmorphism design powered by Framer Motion.
-- **Multi-Language Support**: Fully localized in English and French and expandable to any language.
+- **One-click server creation**: choose a server type and version, the launcher handles the rest (Java included).
+- **No terminal needed**: start, stop, and configure your server entirely from the UI.
+- **Built-in console**: send commands and watch logs in real time.
+- **Plugin management**: browse and install plugins from Modrinth, Hangar, and Pumpkin Market directly from the app.
+- **File editor**: edit config files without leaving the launcher.
+- **Supports Paper, Fabric, and Pumpkin**: pick what works for your friends.
+- **English & French**.
 
 ## Technology Stack
 
-- **Framework**: [Electron](https://www.electronjs.org/)
-- **Frontend**: [React](https://react.dev/) + [Vite](https://vitejs.dev/)
-- **Styling**: Vanilla CSS with [Framer Motion](https://www.framer.com/motion/) for animations.
-- **Build Tool**: [Electron Builder](https://www.electron.build/)
+- **Backend**: [Rust](https://www.rust-lang.org/) + [Tauri 2](https://v2.tauri.app/)
+- **Frontend**: [React 19](https://react.dev/) + [Vite](https://vitejs.dev/)
 
-## Getting Started
+## Contributing / Building from source
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (v20 or higher recommended)
-- npm (v10 or higher)
+- [Node.js](https://nodejs.org/) v22+
+- [Rust](https://www.rust-lang.org/tools/install) stable
+- Tauri system dependencies: [v2.tauri.app/start/prerequisites](https://v2.tauri.app/start/prerequisites/)
 
-### Installation
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/Open-VMC/VMCLauncher.git
-   cd VMCLauncher
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-### Development
-
-Run the launcher in development mode with hot-reload:
 ```bash
-npm run dev
+git clone https://github.com/Open-VMC/VMCLauncher.git
+cd VMCLauncher
+npm install
+npx tauri dev      # development
+npx tauri build    # production build
 ```
 
-### Building for Production
+## CI/CD
 
-To build the application for your current platform:
-```bash
-npm run dist
-```
-
-## Distribution & CI/CD
-
-We use **GitHub Actions** to automate the build process for all platforms. You can trigger builds manually:
-
-1. Navigate to the **Actions** tab in the repository.
-2. Select the **"Build and Release"** workflow.
-3. Click **"Run workflow"** and choose your target platform (macOS, Windows, Linux, or all).
-4. Download the generated executables from the **Artifacts** section at the bottom of the run summary.
+Builds are automated via **GitHub Actions** (workflow dispatch: macOS, Windows, Linux or all).
 
 ## License
 
-This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
+GNU General Public License v3.0, see [LICENSE](LICENSE).
 
 ---
 

@@ -1,4 +1,4 @@
 node_modules
 dist
-dist-electron
-.DS_Store
+**/.DS_Store
+src-tauri/target
