@@ -176,10 +176,8 @@ pub async fn update_server_setting(
             if field == "whiteList" {
                 patch_server_property(&props_path, "enforce-whitelist", &prop_value).await?;
             }
-        } else {
-            let prop_value = value_to_prop_string(&value);
-            patch_server_property(&props_path, &field.to_lowercase(), &prop_value).await?;
         }
+        // else: unrecognized field — skip rather than write a malformed key
     }
 
     Ok(())

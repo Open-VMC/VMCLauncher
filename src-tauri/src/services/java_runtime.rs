@@ -43,7 +43,7 @@ async fn extract_to(archive: &Path, dest: &Path) -> Result<(), AppError> {
     let archive = archive.to_path_buf();
     let dest = dest.to_path_buf();
 
-    if cfg!(target_os = "windows") {
+    let status = if cfg!(target_os = "windows") {
         let script = format!(
             "Expand-Archive -Path '{}' -DestinationPath '{}' -Force",
             archive.display(),
@@ -52,12 +52,15 @@ async fn extract_to(archive: &Path, dest: &Path) -> Result<(), AppError> {
         tokio::process::Command::new("powershell")
             .args(["-NoProfile", "-Command", &script])
             .status()
-            .await?;
+            .await?
     } else {
         tokio::process::Command::new("tar")
             .args(["xzf", &archive.to_string_lossy(), "-C", &dest.to_string_lossy()])
             .status()
-            .await?;
+            .await?
+    };
+    if !status.success() {
+        return Err(AppError::Generic(format!("archive extraction failed with {status}")));
     }
     Ok(())
 }

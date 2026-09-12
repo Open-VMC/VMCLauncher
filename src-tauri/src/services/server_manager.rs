@@ -8,7 +8,7 @@ use reqwest::Client;
 use std::collections::HashMap;
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex as StdMutex};
+use std::sync::{Arc, Mutex as StdMutex, atomic::{AtomicBool, Ordering}};
 use std::time::Instant;
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -30,6 +30,7 @@ pub struct RuntimeState {
     pub started_at: Instant,
     pub pid: Option<u32>,
     pub java_upgrade_needed: Arc<StdMutex<Option<u32>>>,
+    pub stop_requested: Arc<AtomicBool>,
     poll_abort: tokio::sync::watch::Sender<bool>,
 }
 
@@ -57,7 +58,7 @@ impl ServerManager {
         let server_dir = store.paths.servers_dir.join(&slug);
         tokio::fs::create_dir_all(&server_dir).await?;
 
-        let paper_port = find_available_port(25565)?;
+        let (paper_port, _port_guard) = bind_available_port(25565)?;
         let is_pumpkin = payload.kind == ServerKind::Pumpkin;
 
         let (java_version, resolved_version) = if is_pumpkin {
@@ -204,6 +205,26 @@ impl ServerManager {
             }
         }
 
+        // Re-bind the port just before spawning to close the TOCTOU window between
+        // create_server (where the port was first chosen) and now.
+        // _port_guard is dropped at the end of this block, just before spawn.
+        if !is_pumpkin {
+            let stored_port = server.paper_port;
+            let (live_port, _port_guard) = match TcpListener::bind(("127.0.0.1", stored_port)) {
+                Ok(l) => (stored_port, l),
+                Err(_) => bind_available_port(stored_port + 1)?,
+            };
+            if live_port != stored_port {
+                patch_server_property(
+                    &server_dir.join("server.properties"),
+                    "server-port",
+                    &live_port.to_string(),
+                ).await?;
+                server.paper_port = live_port;
+                // The updated port is persisted by the store.update_and_save() below.
+            }
+        }
+
         // Kill orphan process left by a hot-reload or unclean crash
         let pid_file = server_dir.join(".pid");
         if pid_file.exists() {
@@ -298,6 +319,7 @@ impl ServerManager {
         }));
         let status_arc: Arc<StdMutex<ServerStatus>> = Arc::new(StdMutex::new(ServerStatus::Starting));
         let java_upgrade_arc: Arc<StdMutex<Option<u32>>> = Arc::new(StdMutex::new(None));
+        let stop_requested_arc: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
 
         let runtime = RuntimeState {
             child: Some(child),
@@ -308,6 +330,7 @@ impl ServerManager {
             started_at: Instant::now(),
             pid,
             java_upgrade_needed: java_upgrade_arc.clone(),
+            stop_requested: stop_requested_arc.clone(),
             poll_abort: poll_abort_tx,
         };
         self.runtimes.insert(uuid_owned.clone(), runtime);
@@ -323,6 +346,7 @@ impl ServerManager {
         let status_for_stdout = status_arc.clone();
         let dir_for_stdout = server_dir.clone();
         let java_upgrade_for_stdout = java_upgrade_arc.clone();
+        let stop_requested_for_stdout = stop_requested_arc.clone();
         let is_pumpkin_for_stdout = is_pumpkin;
         if let Some(stdout) = stdout {
             tokio::spawn(async move {
@@ -370,24 +394,29 @@ impl ServerManager {
 
                 let required_java = java_upgrade_for_stdout.lock().unwrap().take();
                 let state = app_for_stdout.state::<AppState>();
-                {
-                    let mut servers = state.servers.lock().await;
-                    servers.runtimes.remove(&uuid_for_stdout);
-                }
-                {
-                    let mut store = state.store.lock().await;
-                    if let Some(s) = store.find_server_mut(&uuid_for_stdout) {
-                        s.record.status = ServerStatus::Stopped;
-                        let _ = store.update_and_save();
+                // Only do cleanup here on natural exit / crash.
+                // If stop_server initiated the shutdown, its own task handles cleanup to
+                // avoid double-remove and duplicate server-updated events.
+                if !stop_requested_for_stdout.load(Ordering::Relaxed) {
+                    {
+                        let mut servers = state.servers.lock().await;
+                        servers.runtimes.remove(&uuid_for_stdout);
                     }
+                    {
+                        let mut store = state.store.lock().await;
+                        if let Some(s) = store.find_server_mut(&uuid_for_stdout) {
+                            s.record.status = ServerStatus::Stopped;
+                            let _ = store.update_and_save();
+                        }
+                    }
+                    let _ = tokio::fs::remove_file(dir_for_stdout.join(".pid")).await;
+                    let _ = app_for_stdout.emit("launcher:event", LauncherEvent {
+                        event_type: "server-updated".to_string(),
+                        server_uuid: Some(uuid_for_stdout.clone()),
+                        progress: None,
+                        console_line: None,
+                    });
                 }
-                let _ = tokio::fs::remove_file(dir_for_stdout.join(".pid")).await;
-                let _ = app_for_stdout.emit("launcher:event", LauncherEvent {
-                    event_type: "server-updated".to_string(),
-                    server_uuid: Some(uuid_for_stdout.clone()),
-                    progress: None,
-                    console_line: None,
-                });
 
                 // Detect JVM fatal crash file written by HotSpot
                 if let Ok(mut rd) = tokio::fs::read_dir(&dir_for_stdout).await {
@@ -578,6 +607,7 @@ impl ServerManager {
             .ok_or_else(|| AppError::NotFound(format!("Running server {uuid}")))?;
 
         *runtime.runtime_status.lock().unwrap() = ServerStatus::Stopping;
+        runtime.stop_requested.store(true, Ordering::Relaxed);
         let _ = runtime.stdin_tx.send("stop".to_string()).await;
         let _ = runtime.poll_abort.send(true);
 
@@ -689,9 +719,13 @@ impl ServerManager {
     pub async fn cleanup_zombies(&mut self) {
         let dead: Vec<String> = self
             .runtimes
-            .iter()
-            .filter(|(_, _r)| false)
-            .map(|(k, _)| k.clone())
+            .iter_mut()
+            .filter_map(|(k, r)| {
+                let exited = r.child.as_mut()
+                    .and_then(|c| c.try_wait().ok().flatten())
+                    .is_some();
+                if exited { Some(k.clone()) } else { None }
+            })
             .collect();
 
         for uuid in dead {
@@ -703,14 +737,27 @@ impl ServerManager {
 // File Operations
 
 pub fn resolve_safe_path(root: &Path, relative: &str) -> Result<PathBuf, AppError> {
-    let joined = root.join(relative);
-    let canonical = joined
-        .canonicalize()
-        .unwrap_or_else(|_| joined.clone());
-    if !canonical.starts_with(root) {
+    // Canonicalize root so symlinks in its path are resolved before comparison.
+    let canonical_root = root.canonicalize().map_err(|_| AppError::PathTraversal)?;
+    // Normalize manually: process components so `..` is resolved without requiring the
+    // target file to exist (canonicalize() fails on non-existent paths).
+    let joined = canonical_root.join(relative);
+    let mut normalized = PathBuf::new();
+    for component in joined.components() {
+        match component {
+            std::path::Component::ParentDir => {
+                if !normalized.pop() {
+                    return Err(AppError::PathTraversal);
+                }
+            }
+            std::path::Component::CurDir => {}
+            c => normalized.push(c),
+        }
+    }
+    if !normalized.starts_with(&canonical_root) {
         return Err(AppError::PathTraversal);
     }
-    Ok(canonical)
+    Ok(normalized)
 }
 
 pub async fn list_files(root: &Path, relative: &str) -> Result<Vec<FileEntry>, AppError> {
@@ -1066,10 +1113,12 @@ fn extract_jar_metadata(path: &std::path::Path) -> Option<JarMetadata> {
 
 // Helpers
 
-fn find_available_port(start: u16) -> Result<u16, AppError> {
+// Returns both the port number and the bound TcpListener so the caller can hold the port
+// reserved until just before the JVM spawns, eliminating the TOCTOU window.
+fn bind_available_port(start: u16) -> Result<(u16, TcpListener), AppError> {
     for port in start..=65535 {
-        if TcpListener::bind(("127.0.0.1", port)).is_ok() {
-            return Ok(port);
+        if let Ok(listener) = TcpListener::bind(("127.0.0.1", port)) {
+            return Ok((port, listener));
         }
     }
     Err(AppError::Generic("No available port found".into()))
