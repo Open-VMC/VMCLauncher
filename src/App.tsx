@@ -146,7 +146,7 @@ export function App() {
         if (d) setDetails(d);
       }).catch(() => {});
     } else {
-      setTimeout(() => setMinDelayElapsed(true), 5000);
+      setTimeout(() => setMinDelayElapsed(true), 1000);
     }
 
     const onHashChange = () => setRoute(parseHash(window.location.hash));
