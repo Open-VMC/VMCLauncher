@@ -96,7 +96,7 @@ export function App() {
   const [details, setDetails] = useState<ServerDetails | null>(null);
   const [route, setRoute] = useState(() => parseHash(window.location.hash));
   const [createOpen, setCreateOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
+
   const [feedback, setFeedback] = useState<string | null>(null);
   const [bootError, setBootError] = useState<string | null>(null);
   const [installationProgress, setInstallationProgress] = useState<InstallationProgress | null>(null);
@@ -262,10 +262,9 @@ export function App() {
   }
 
   const withFeedback = useCallback(async (work: () => Promise<void>) => {
-    setBusy(true); setFeedback(null);
+    setFeedback(null);
     try { await work(); }
     catch (err) { setFeedback(err instanceof Error ? err.message : String(err)); }
-    finally { setBusy(false); }
   }, []);
 
   async function handleCreateServer(payload: CreateServerPayload) {

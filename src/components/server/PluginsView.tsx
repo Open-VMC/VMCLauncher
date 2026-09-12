@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ExternalLink, Upload, Download, CheckCircle, Package, Plus, ArrowLeft, RefreshCw, Trash2, X, Search, ChevronRight, Clock, Tag } from "lucide-react";
+import { ExternalLink, Upload, Download, CheckCircle, Package, Plus, ArrowLeft, RefreshCw, Trash2, X, Search, ChevronRight } from "lucide-react";
 import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useI18n } from "../../i18n";
@@ -11,8 +11,6 @@ import { getAddonMode } from "../../utils/server";
 
 type SortMode = "newest" | "downloads";
 type ViewMode = "installed" | "add";
-
-const pageTransition = { duration: 0.2, ease: [0.4, 0, 0.2, 1] as const };
 
 const listContainer = {
   hidden: {},
@@ -496,7 +494,6 @@ function InstalledPluginRow({ plugin, resolved, isLast, onChangeVersion, onToggl
   onToggle: () => void;
   onDelete: () => void;
 }) {
-  const { t } = useI18n();
   const iconUrl = resolved?.iconUrl ?? plugin.iconUrl;
   const description = plugin.description ?? resolved?.description;
   const normalizedFileName = plugin.fileName.replace(/\.disabled$/, "");

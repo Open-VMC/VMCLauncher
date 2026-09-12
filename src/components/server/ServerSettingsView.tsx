@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useI18n } from "../../i18n";
 import { motion, AnimatePresence } from "framer-motion";
 import type { LauncherSnapshot, ServerDetails, ServerSettings } from "../../types";
